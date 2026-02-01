@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Meme Generator</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="bg-blob bg-blob-center" aria-hidden="true"></div>
+  <div class="container">
+    <h1>Meme Generator</h1>
+
+    <div class="controls">
+      <div class="control-group">
+        <label for="imageInput" class="btn btn-primary">Choose image</label>
+        <input type="file" id="imageInput" accept="image/*" hidden>
+      </div>
+
+      <div class="control-group">
+        <label for="topText">Top text</label>
+        <input type="text" id="topText" placeholder="Top text">
+      </div>
+
+      <div class="control-group">
+        <label for="bottomText">Bottom text</label>
+        <input type="text" id="bottomText" placeholder="Bottom text">
+      </div>
+
+      <div class="control-group">
+        <label for="topFontSize">Top font size: <span id="topFontSizeValue">48</span>px</label>
+        <input type="range" id="topFontSize" min="16" max="120" value="48">
+      </div>
+      <div class="control-group">
+        <label for="topFontColor">Top text color</label>
+        <input type="color" id="topFontColor" value="#ffffff" title="Top text color">
+      </div>
+
+      <div class="control-group">
+        <label for="bottomFontSize">Bottom font size: <span id="bottomFontSizeValue">48</span>px</label>
+        <input type="range" id="bottomFontSize" min="16" max="120" value="48">
+      </div>
+      <div class="control-group">
+        <label for="bottomFontColor">Bottom text color</label>
+        <input type="color" id="bottomFontColor" value="#ffffff" title="Bottom text color">
+      </div>
+
+      <div class="control-group">
+        <button type="button" id="downloadBtn" class="btn btn-download" disabled>Download meme</button>
+      </div>
+    </div>
+
+    <div class="canvas-wrap">
+      <canvas id="memeCanvas"></canvas>
+      <p class="hint" id="hint">Choose an image to get started.</p>
+    </div>
+  </div>
+  <script src="app.js"></script>
+</body>
+</html>
