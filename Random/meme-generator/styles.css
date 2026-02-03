@@ -193,6 +193,52 @@ input[type="color"]:focus {
   cursor: not-allowed;
 }
 
+.btn-secondary {
+  background: linear-gradient(135deg, #a0c8e8 0%, #c8a0e8 100%);
+  color: #fff;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #b0d0f0 0%, #d4b0f0 100%);
+}
+
+.btn-secondary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-delete {
+  background: linear-gradient(135deg, #ff6b6b 0%, #ff8787 100%);
+  color: #fff;
+}
+
+.btn-delete:hover {
+  background: linear-gradient(135deg, #ff8080 0%, #ff9999 100%);
+}
+
+.text-box-editor {
+  background: rgba(255, 255, 255, 0.9);
+  border: 2px solid rgba(232, 160, 200, 0.4);
+  border-radius: 16px;
+  padding: 1.5rem;
+  margin-bottom: 1.5rem;
+  box-shadow: 0 4px 20px rgba(200, 160, 232, 0.2);
+}
+
+.text-box-editor h3 {
+  margin: 0 0 1rem 0;
+  font-size: 1.25rem;
+  color: #4a3a5a;
+}
+
+.text-box-editor .controls {
+  margin-bottom: 0;
+}
+
+#memeCanvas {
+  cursor: crosshair;
+}
+
 .canvas-wrap {
   position: relative;
   display: flex;

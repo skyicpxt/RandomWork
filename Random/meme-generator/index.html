@@ -18,31 +18,7 @@
       </div>
 
       <div class="control-group">
-        <label for="topText">Top text</label>
-        <input type="text" id="topText" placeholder="Top text">
-      </div>
-
-      <div class="control-group">
-        <label for="bottomText">Bottom text</label>
-        <input type="text" id="bottomText" placeholder="Bottom text">
-      </div>
-
-      <div class="control-group">
-        <label for="topFontSize">Top font size: <span id="topFontSizeValue">48</span>px</label>
-        <input type="range" id="topFontSize" min="16" max="120" value="48">
-      </div>
-      <div class="control-group">
-        <label for="topFontColor">Top text color</label>
-        <input type="color" id="topFontColor" value="#ffffff" title="Top text color">
-      </div>
-
-      <div class="control-group">
-        <label for="bottomFontSize">Bottom font size: <span id="bottomFontSizeValue">48</span>px</label>
-        <input type="range" id="bottomFontSize" min="16" max="120" value="48">
-      </div>
-      <div class="control-group">
-        <label for="bottomFontColor">Bottom text color</label>
-        <input type="color" id="bottomFontColor" value="#ffffff" title="Bottom text color">
+        <button type="button" id="addTextBtn" class="btn btn-secondary" disabled>Add text box</button>
       </div>
 
       <div class="control-group">
@@ -50,9 +26,30 @@
       </div>
     </div>
 
+    <div id="textBoxEditor" class="text-box-editor" style="display: none;">
+      <h3>Edit Text Box</h3>
+      <div class="controls">
+        <div class="control-group">
+          <label for="textBoxText">Text</label>
+          <input type="text" id="textBoxText" placeholder="Enter text">
+        </div>
+        <div class="control-group">
+          <label for="textBoxFontSize">Font size: <span id="textBoxFontSizeValue">48</span>px</label>
+          <input type="range" id="textBoxFontSize" min="16" max="120" value="48">
+        </div>
+        <div class="control-group">
+          <label for="textBoxColor">Text color</label>
+          <input type="color" id="textBoxColor" value="#ffffff" title="Text color">
+        </div>
+        <div class="control-group">
+          <button type="button" id="deleteTextBtn" class="btn btn-delete">Delete</button>
+        </div>
+      </div>
+    </div>
+
     <div class="canvas-wrap">
       <canvas id="memeCanvas"></canvas>
-      <p class="hint" id="hint">Choose an image to get started.</p>
+      <p class="hint" id="hint">Choose an image, then click anywhere on it to add text boxes.</p>
     </div>
   </div>
   <script src="app.js"></script>
