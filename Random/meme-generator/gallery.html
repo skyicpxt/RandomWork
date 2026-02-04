@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Meme Gallery - Meme Generator</title>
+  <link rel="stylesheet" href="shared.css">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="bg-blob bg-blob-center" aria-hidden="true"></div>
+  <div class="container">
+    <div class="header">
+      <h1>Meme Gallery</h1>
+      <div class="nav">
+        <div class="user-info">
+          <span class="username" id="usernameDisplay">Loading...</span>
+        </div>
+        <a href="index.html" class="btn btn-primary">Create Meme</a>
+        <button type="button" id="logoutBtn" class="btn btn-delete">Logout</button>
+      </div>
+    </div>
+
+    <div class="gallery-header">
+      <h2 style="margin: 0;">Browse Memes</h2>
+      <div class="sort-controls">
+        <label for="sortSelect">Sort by:</label>
+        <select id="sortSelect">
+          <option value="newest">Newest First</option>
+          <option value="oldest">Oldest First</option>
+          <option value="upvotes">Most Upvoted</option>
+        </select>
+      </div>
+    </div>
+
+    <div id="loading" class="loading" style="display: none;">Loading memes...</div>
+    <div id="emptyState" class="empty-state" style="display: none;">
+      <h2>No memes yet!</h2>
+      <p>Be the first to create and post a meme.</p>
+      <a href="index.html" class="btn btn-primary" style="margin-top: 1rem; display: inline-block;">Create Meme</a>
+    </div>
+    <div id="memeGrid" class="meme-grid"></div>
+  </div>
+
+  <!-- Load InstantDB from CDN -->
+  <script type="module">
+    import { init, i, id } from 'https://cdn.jsdelivr.net/npm/@instantdb/core@0.19.20/+esm';
+    
+    // Make InstantDB available globally
+    window.InstantDBLib = { init, i, id };
+    
+    // Load our API wrapper
+    const script = document.createElement('script');
+    script.src = 'api.js';
+    script.onload = () => {
+      // Initialize InstantDB library in our API
+      if (window.InstantDB && window.InstantDB.setInstantDBLib) {
+        window.InstantDB.setInstantDBLib(window.InstantDBLib);
+      }
+      // Load gallery.js
+      const galleryScript = document.createElement('script');
+      galleryScript.src = 'gallery.js';
+      document.body.appendChild(galleryScript);
+    };
+    document.body.appendChild(script);
+  </script>
+</body>
+</html>
