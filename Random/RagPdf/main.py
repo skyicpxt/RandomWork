@@ -97,7 +97,7 @@ query = "How to train a large language model?"
 #     else:
 #         print(f"(no content) from {result.filename} (score: {result.score})")
 
-
+# # use as a tool
 response = client.responses.create(
     input= query,
     model="gpt-4o-mini",
@@ -123,3 +123,116 @@ else:
     print(f"Files used: {retrieved_files}")
     print("Response:")
     print(content_block.text)
+
+def extract_text_from_pdf(pdf_path):
+    text = ""
+    try:
+        with open(pdf_path, "rb") as f:
+            reader = PyPDF2.PdfReader(f)
+            for page in reader.pages:
+                page_text = page.extract_text()
+                if page_text:
+                    text += page_text
+    except Exception as e:
+        print(f"Error reading {pdf_path}: {e}")
+    return text
+
+def generate_questions(pdf_path, max_input_chars: int = 100_000):
+    """Generate a question answerable only from the given PDF; truncates long docs to fit context."""
+    text = extract_text_from_pdf(pdf_path)
+    if len(text) > max_input_chars:
+        text = text[:max_input_chars] + "\n\n[Document truncated for length.]"
+
+    prompt = (
+        "Can you generate a question that can only be answered from this document?:\n"
+        f"{text}\n\n"
+    )
+
+    response = client.responses.create(
+        input=prompt,
+        model="gpt-4o",
+    )
+
+    question = response.output[0].content[0].text
+
+    return question
+
+# Generate questions for each PDF and store in a dictionary
+questions_dict = {}
+for pdf_path in pdf_files:
+    questions = generate_questions(pdf_path)
+    questions_dict[os.path.basename(pdf_path)] = questions
+# Print the questions dictionary
+print(questions_dict)
+
+rows = []
+for filename, query in questions_dict.items():
+    rows.append({"query": query, "_id": filename.replace(".pdf", "")})
+
+# Metrics evaluation parameters
+k = 5
+total_queries = len(rows)
+correct_retrievals_at_k = 0
+reciprocal_ranks = []
+average_precisions = []
+
+def process_query(row):
+    query = row['query']
+    expected_filename = row['_id'] + '.pdf'
+    # Call file_search via Responses API
+    response = client.responses.create(
+        input=query,
+        model="gpt-4o-mini",
+        tools=[{
+            "type": "file_search",
+            "vector_store_ids": [vector_store_details['id']],
+            "max_num_results": k,
+        }],
+        tool_choice="required" # it will force the file_search, while not necessary, it's better to enforce it as this is what we're testing
+    )
+    # Extract annotations from the response
+    annotations = None
+    if hasattr(response.output[1], 'content') and response.output[1].content:
+        annotations = response.output[1].content[0].annotations
+    elif hasattr(response.output[1], 'annotations'):
+        annotations = response.output[1].annotations
+
+    if annotations is None:
+        print(f"No annotations for query: {query}")
+        return False, 0, 0
+
+    # Get top-k retrieved filenames
+    retrieved_files = [result.filename for result in annotations[:k]]
+    if expected_filename in retrieved_files:
+        rank = retrieved_files.index(expected_filename) + 1
+        rr = 1 / rank
+        correct = True
+    else:
+        rr = 0
+        correct = False
+
+    # Calculate Average Precision
+    precisions = []
+    num_relevant = 0
+    for i, fname in enumerate(retrieved_files):
+        if fname == expected_filename:
+            num_relevant += 1
+            precisions.append(num_relevant / (i + 1))
+    avg_precision = sum(precisions) / len(precisions) if precisions else 0
+    
+    if expected_filename not in retrieved_files:
+        print("Expected file NOT found in the retrieved files!")
+        
+    if retrieved_files and retrieved_files[0] != expected_filename:
+        print(f"Query: {query}")
+        print(f"Expected file: {expected_filename}")
+        print(f"First retrieved file: {retrieved_files[0]}")
+        print(f"Retrieved files: {retrieved_files}")
+        print("-" * 50)
+    
+    
+    return correct, rr, avg_precision
+
+
+print("before process_query")
+print(process_query(rows[0]))
