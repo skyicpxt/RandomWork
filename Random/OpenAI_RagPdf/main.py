@@ -121,7 +121,7 @@ expected = upload_stats["total_files"]
 if expected > 0:
     wait_for_vector_store_ready(vector_store_details["id"], expected)
 
-query = "How to train a large language model?"
+query = "What is a large language model?"
 # # directly search the vector store
 # search_results = client.vector_stores.search(
 #     vector_store_id=vector_store_details['id'],
@@ -180,7 +180,7 @@ response = _call_with_retry(
 #
 #    Output item [1] – type = 'message'
 #    ----------------------------------
-#    The assistant's reply: one or more content blocks (usually one text block).
+#     (usually one text block).
 #
 #      .id     - Unique ID for this message.
 #      .role   - Always "assistant" for model output.
