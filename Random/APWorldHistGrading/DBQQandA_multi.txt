@@ -1,0 +1,79 @@
+CATEGORY: DBQ
+
+Question1
+DOCS:
+DOCUMENT 1
+Source: Xuanzang, Chinese Buddhist monk, account of his pilgrimage to India, circa 646 CE.
+"The roads are many and dangerous, yet the dharma compels the faithful forward. Along the desert paths west of Dunhuang I found monasteries sustained by merchant donations, their walls painted with the Bodhisattvas. The traders who rest there fill the monks' bowls, and the monks bless the merchants' journeys."
+
+DOCUMENT 2
+Source: Tang Dynasty imperial edict regulating trade at Dunhuang, 750 CE.
+"Let all merchants traveling the western routes register their goods with the frontier prefect. Silk, bronze vessels, and fine paper shall pass only with imperial seal. Those who carry sutras and sacred relics are exempt from tariff in recognition of their service to the Buddha's teaching."
+
+DOCUMENT 3
+Source: Ibn Battuta, Moroccan Muslim traveler and scholar, account of his travels, circa 1340 CE.
+"The khan's roads are safe for any who travel under the Mongol yam system. I witnessed merchants from China, Persia, India, and Frankish lands all gathered at Samarkand. The bazaars overflow with silks, porcelains, and spices. The city is proof that God has blessed commerce as a vehicle of human brotherhood."
+
+DOCUMENT 4
+Source: Al-Masudi, Arab geographer, from "Meadows of Gold," 956 CE.
+"Siraf on the Persian Gulf is the gateway through which the wealth of China flows to the Muslim world. The ships that dock here carry porcelain, silk, and camphor. The merchants who operate these routes have grown fabulously wealthy, and their prosperity has funded the construction of mosques and schools throughout the caliphate."
+
+DOCUMENT 5
+Source: A Sogdian merchant letter found at Dunhuang, approximately 313 CE (slightly pre-period, provides context).
+"Know that trade has become impossible. The Indians have fled, the Sogdians who were here have all gone to Dunhuang. I myself was robbed on the road. Send no more silk until peace returns."
+
+DOCUMENT 6
+Source: Marco Polo, Venetian merchant, from "The Travels of Marco Polo," circa 1300 CE.
+"The Great Khan has established posting stations every twenty-five miles along all the roads of his empire. At each station are fresh horses and men to carry the khan's messages. This system ensures that travelers, merchants, and ambassadors may pass in safety and with great speed. In this way the whole of Asia is opened to commerce."
+
+DOCUMENT 7
+Source: Giovanni de' Mussis, Italian notary, account of the arrival of plague, circa 1348 CE.
+"In the year of our Lord 1346, in the Eastern countries, a great plague overcame the Tartars. It was carried westward by the Genoese merchants trading at Caffa on the Black Sea. When the Tartars besieged Caffa, they catapulted the bodies of the infected into the city. The merchants fled by ship and brought the pestilence to Sicily, and from there it spread to all of Christendom."
+
+Q: Evaluate the extent to which the Silk Roads facilitated cultural and economic exchange between 600 CE and 1450 CE.
+
+A: The Silk Roads were ancient trade routes that connected China to the Mediterranean world, facilitating the exchange of goods, ideas, and cultures. During the period of 600–1450 CE, these routes played a transformative role in shaping civilizations across Eurasia and Africa.
+
+Document 1 shows Buddhist monasteries along the routes sustained by merchant donations, linking faith and commerce. Document 2, an imperial edict, ties the state to Silk Road traffic and exempts those carrying sutras from tariff—evidence that governments structured trade around religious as well as economic goals. Document 3 describes Samarkand as a meeting place for merchants from many lands under Mongol protection, illustrating cultural blending along the corridors. Economically, Document 4 praises Siraf as a Persian Gulf gateway for Chinese goods, showing how maritime and overland networks connected economies. Document 5 offers a counterpoint: a merchant letter describing robbery and collapsed trade, reminding us that exchange depended on security and could break down. The Mongol Empire fostered what scholars call the Pax Mongolica; Document 6 describes posting stations that allowed merchants and envoys to cross Asia with relative safety, increasing traffic on the routes. Document 7 shows the tragic flip side—Genoese merchants carried plague from the Black Sea to Sicily—proving that the same networks that moved silk and ideas could also move disease.
+
+In conclusion, the Silk Roads between 600 and 1450 CE were a major engine of cross-cultural and economic exchange, but documents 5 and 7 especially qualify any claim that this exchange was always stable or benign.
+
+Question2
+DOCS:
+DOCUMENT 1
+Source: Xuanzang, Chinese Buddhist monk, account of his pilgrimage to India, circa 646 CE.
+"The roads are many and dangerous, yet the dharma compels the faithful forward. Along the desert paths west of Dunhuang I found monasteries sustained by merchant donations, their walls painted with the Bodhisattvas. The traders who rest there fill the monks' bowls, and the monks bless the merchants' journeys."
+
+DOCUMENT 2
+Source: Tang Dynasty imperial edict regulating trade at Dunhuang, 750 CE.
+"Let all merchants traveling the western routes register their goods with the frontier prefect. Silk, bronze vessels, and fine paper shall pass only with imperial seal. Those who carry sutras and sacred relics are exempt from tariff in recognition of their service to the Buddha's teaching."
+
+DOCUMENT 3
+Source: Ibn Battuta, Moroccan Muslim traveler and scholar, account of his travels, circa 1340 CE.
+"The khan's roads are safe for any who travel under the Mongol yam system. I witnessed merchants from China, Persia, India, and Frankish lands all gathered at Samarkand. The bazaars overflow with silks, porcelains, and spices. The city is proof that God has blessed commerce as a vehicle of human brotherhood."
+
+DOCUMENT 4
+Source: Al-Masudi, Arab geographer, from "Meadows of Gold," 956 CE.
+"Siraf on the Persian Gulf is the gateway through which the wealth of China flows to the Muslim world. The ships that dock here carry porcelain, silk, and camphor. The merchants who operate these routes have grown fabulously wealthy, and their prosperity has funded the construction of mosques and schools throughout the caliphate."
+
+DOCUMENT 5
+Source: A Sogdian merchant letter found at Dunhuang, approximately 313 CE (slightly pre-period, provides context).
+"Know that trade has become impossible. The Indians have fled, the Sogdians who were here have all gone to Dunhuang. I myself was robbed on the road. Send no more silk until peace returns."
+
+DOCUMENT 6
+Source: Marco Polo, Venetian merchant, from "The Travels of Marco Polo," circa 1300 CE.
+"The Great Khan has established posting stations every twenty-five miles along all the roads of his empire. At each station are fresh horses and men to carry the khan's messages. This system ensures that travelers, merchants, and ambassadors may pass in safety and with great speed. In this way the whole of Asia is opened to commerce."
+
+DOCUMENT 7
+Source: Giovanni de' Mussis, Italian notary, account of the arrival of plague, circa 1348 CE.
+"In the year of our Lord 1346, in the Eastern countries, a great plague overcame the Tartars. It was carried westward by the Genoese merchants trading at Caffa on the Black Sea. When the Tartars besieged Caffa, they catapulted the bodies of the infected into the city. The merchants fled by ship and brought the pestilence to Sicily, and from there it spread to all of Christendom."
+
+Q: Evaluate the extent to which long-distance trade networks in Eurasia between 1200 and 1450 CE both promoted integration and created new vulnerabilities.
+
+A: Between 1200 and 1450 CE, Eurasian trade networks wove states, religions, and economies together yet also exposed societies to violence, disorder, and epidemic disease.
+
+Documents 3 and 6 most clearly support integration: Ibn Battuta describes safe Mongol roads and cosmopolitan bazaars at Samarkand, while Marco Polo details the yam system that sped merchants and ambassadors across the khan's empire. Document 4 shows how commercial wealth at Siraf funded mosques and schools—evidence that trade knitted the Muslim world to Indian Ocean and overland circuits. Documents 1 and 2, though earlier in date, show the longer pattern of imperial regulation and religious travel that such networks built on: monks and merchants shared the same roads, and states like Tang China codified who could move what.
+
+Vulnerabilities appear forcefully in documents 5 and 7. The Sogdian letter describes robbery and the suspension of silk shipments—integration meant little when order collapsed. De' Mussis traces plague from the steppe to Sicily aboard merchant ships, showing that high connectivity could carry biological catastrophe as easily as camphor or porcelain. Even documents 3 and 6 imply dependence on Mongol power; when central authority weakened, the safety they describe could fray.
+
+Therefore, to a great extent these networks promoted Eurasian integration, but documents 5 and 7 especially show that the same links created structural vulnerabilities that a balanced historical argument must address.

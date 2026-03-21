@@ -1,0 +1,44 @@
+CATEGORY: LEQ
+
+Question1
+Q: Evaluate the extent to which industrialization in the nineteenth century caused significant changes in the role of women in society.
+
+A: The Industrial Revolution of the nineteenth century fundamentally altered the economic and social landscape of Europe and North America, producing significant but uneven changes in the lives of women. While industrialization created new opportunities for female labor and laid groundwork for feminist movements, it simultaneously reinforced gender hierarchies through new ideological frameworks.
+
+Prior to industrialization, women's work was largely domestic and agrarian. With the rise of factories, particularly in textile industries, women—and children—became a primary source of cheap labor. In Britain, women constituted the majority of workers in early cotton mills, representing a dramatic departure from pre-industrial gender norms. This shift granted working-class women a degree of economic independence, even if wages remained far below those of male counterparts.
+
+At the same time, the growth of a middle class produced the "Cult of Domesticity," an ideology that celebrated women as moral guardians of the home. Middle-class women were increasingly removed from the workforce, their roles defined by motherhood and domestic management. This created a bifurcated female experience: working-class women labored in harsh industrial conditions while bourgeois women were idealized as passive homemakers. Such contradictions highlight that industrialization's impact on women was shaped heavily by class.
+
+Nevertheless, industrialization catalyzed feminist activism. Reformers like Mary Wollstonecraft and later Susan B. Anthony and Elizabeth Cady Stanton drew connections between industrial capitalism's language of rights and equality and the political exclusion of women. The Seneca Falls Declaration of 1848 explicitly used the rhetoric of natural rights—a product of Enlightenment thinking that industrializing societies espoused—to demand women's suffrage. Thus industrialization indirectly fostered the conditions for feminist political organization.
+
+In comparison, in non-industrialized regions such as sub-Saharan Africa and much of Asia, women's roles changed primarily through colonial disruption rather than industrial transformation, suggesting that industrialization was a regionally specific but globally significant force.
+
+In conclusion, nineteenth-century industrialization caused significant changes in women's roles by opening new economic opportunities for the working class and generating the ideological contradictions that fueled feminist movements, while also entrenching domestic ideals for middle-class women.
+
+Question2
+Q: Evaluate the extent to which the expansion of European maritime empires between 1450 and 1750 transformed economic systems in the Americas.
+
+A: European maritime expansion between 1450 and 1750 fundamentally reshaped American economies by integrating the hemisphere into Atlantic commercial circuits, though the extent of transformation varied by region and often built on pre-existing structures.
+
+The Spanish extraction of silver from Potosí and Mexican mines fueled transatlantic trade and linked the Americas to European and Asian markets through the Manila galleon trade. Encomienda and later hacienda systems mobilized indigenous and African labor for mining and plantation agriculture, replacing or overlaying earlier tribute economies with export-oriented production aimed at European consumers.
+
+Portuguese Brazil's sugar plantations exemplified the plantation complex: African slavery, large estates, and monoculture for export. This model spread to the Caribbean and parts of North America, creating economies dependent on coerced labor and European demand rather than subsistence or local exchange alone.
+
+At the same time, transformation was incomplete. Indigenous communities in the Andes and Mesoamerica retained elements of reciprocal labor and local markets beneath colonial administration. Some regions experienced demographic collapse from disease more than immediate economic restructuring.
+
+Overall, European empire caused deep economic transformation in the Americas—especially where mining and plantation agriculture dominated—while continuity persisted in many local practices, so the extent of change was significant but geographically uneven.
+
+Question3
+Q: Explain how technological developments during the First World War influenced the course and outcome of the conflict.
+
+A: Technological developments during the First World War intensified stalemate and attrition on the Western Front while also shaping which powers could sustain total war.
+
+Trenches, barbed wire, and machine guns favored defenders and produced prolonged positional warfare; offensives such as the Somme illustrated enormous casualties for limited gains. Chemical weapons introduced new horrors but did not break the deadlock decisively.
+
+Artillery became more sophisticated in range and volume, devastating supply lines and troop concentrations. Submarines threatened Allied shipping and nearly starved Britain before convoy systems and American entry shifted the naval balance.
+
+Aviation evolved from reconnaissance to limited bombing and air combat, extending the battlefield vertically. Radio and telephone improved coordination but could not overcome geographic and industrial constraints.
+
+Industrial capacity—mass production of shells, rifles, and later tanks—helped the Allies after 1917 as American materiel and manpower arrived. German innovation in tactics (storm troops) came too late to offset blockade and resource exhaustion.
+
+Thus technology deepened the war's destructiveness and contributed to Allied victory through combined industrial, naval, and eventually manpower advantages rather than through any single breakthrough weapon.

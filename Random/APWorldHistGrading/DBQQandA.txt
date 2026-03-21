@@ -1,0 +1,44 @@
+CATEGORY: DBQ
+
+Q: Evaluate the extent to which the Silk Roads facilitated cultural and economic exchange between 600 CE and 1450 CE.
+
+DOCS:
+DOCUMENT 1
+Source: Xuanzang, Chinese Buddhist monk, account of his pilgrimage to India, circa 646 CE.
+"The roads are many and dangerous, yet the dharma compels the faithful forward. Along the desert paths west of Dunhuang I found monasteries sustained by merchant donations, their walls painted with the Bodhisattvas. The traders who rest there fill the monks' bowls, and the monks bless the merchants' journeys."
+
+DOCUMENT 2
+Source: Tang Dynasty imperial edict regulating trade at Dunhuang, 750 CE.
+"Let all merchants traveling the western routes register their goods with the frontier prefect. Silk, bronze vessels, and fine paper shall pass only with imperial seal. Those who carry sutras and sacred relics are exempt from tariff in recognition of their service to the Buddha's teaching."
+
+DOCUMENT 3
+Source: Ibn Battuta, Moroccan Muslim traveler and scholar, account of his travels, circa 1340 CE.
+"The khan's roads are safe for any who travel under the Mongol yam system. I witnessed merchants from China, Persia, India, and Frankish lands all gathered at Samarkand. The bazaars overflow with silks, porcelains, and spices. The city is proof that God has blessed commerce as a vehicle of human brotherhood."
+
+DOCUMENT 4
+Source: Al-Masudi, Arab geographer, from "Meadows of Gold," 956 CE.
+"Siraf on the Persian Gulf is the gateway through which the wealth of China flows to the Muslim world. The ships that dock here carry porcelain, silk, and camphor. The merchants who operate these routes have grown fabulously wealthy, and their prosperity has funded the construction of mosques and schools throughout the caliphate."
+
+DOCUMENT 5
+Source: A Sogdian merchant letter found at Dunhuang, approximately 313 CE (slightly pre-period, provides context).
+"Know that trade has become impossible. The Indians have fled, the Sogdians who were here have all gone to Dunhuang. I myself was robbed on the road. Send no more silk until peace returns."
+
+DOCUMENT 6
+Source: Marco Polo, Venetian merchant, from "The Travels of Marco Polo," circa 1300 CE.
+"The Great Khan has established posting stations every twenty-five miles along all the roads of his empire. At each station are fresh horses and men to carry the khan's messages. This system ensures that travelers, merchants, and ambassadors may pass in safety and with great speed. In this way the whole of Asia is opened to commerce."
+
+DOCUMENT 7
+Source: Giovanni de' Mussis, Italian notary, account of the arrival of plague, circa 1348 CE.
+"In the year of our Lord 1346, in the Eastern countries, a great plague overcame the Tartars. It was carried westward by the Genoese merchants trading at Caffa on the Black Sea. When the Tartars besieged Caffa, they catapulted the bodies of the infected into the city. The merchants fled by ship and brought the pestilence to Sicily, and from there it spread to all of Christendom."
+
+A: The Silk Roads were ancient trade routes that connected China to the Mediterranean world, facilitating the exchange of goods, ideas, and cultures. During the period of 600–1450 CE, these routes played a transformative role in shaping civilizations across Eurasia and Africa.
+
+The spread of religion along the Silk Roads represents one of the most significant cultural exchanges of this era. Buddhism traveled from India eastward into China and Southeast Asia, while Islam spread rapidly westward and eastward from the Arabian Peninsula after the 7th century. Document 2, written by a Tang Dynasty monk, describes his pilgrimage along these routes and the thriving Buddhist monasteries he encountered—demonstrating how religious institutions relied on trade networks to sustain themselves. The audience for this document, Chinese Buddhist scholars, likely encouraged the continuation of these religious journeys, lending support to the argument that cultural exchange was intentional and widespread.
+
+Economically, the Silk Roads moved commodities such as silk, spices, porcelain, and precious metals across vast distances. Document 4, an account by the Arab geographer Al-Masudi, praises the prosperity of trading cities along the routes, illustrating how urban centers flourished as commercial hubs. The historical context of Abbasid patronage of trade during the 8th–10th centuries helps explain why these networks were so vibrant: caliphs invested in infrastructure like caravanserais and used standardized currency to reduce transaction costs.
+
+The Mongol Empire in the 13th and 14th centuries created what scholars call the Pax Mongolica, a period of relative peace across Eurasia that dramatically increased traffic on the Silk Roads (Document 6). Merchants like Marco Polo traversed these routes with relative safety, spreading not just goods but also technologies such as papermaking and gunpowder from China to Europe. This is evidence beyond the documents: Chinese technological innovations diffused westward through Mongol-controlled corridors.
+
+However, the Silk Roads also transmitted disease. The Black Death spread from Central Asia to Europe and the Middle East in the 1340s via trade caravans and merchant ships (Document 7). This devastating consequence of connectivity illustrates the complexity of exchange—cultural and economic prosperity could coexist with catastrophic biological transmission. This qualifies the argument that the Silk Roads were uniformly beneficial.
+
+In conclusion, the Silk Roads between 600 and 1450 CE served as the world's primary engine of cross-cultural and economic exchange. From the spread of Buddhism and Islam to the diffusion of Chinese technologies and the tragic transmission of plague, these routes shaped the medieval world in profound and sometimes contradictory ways.
