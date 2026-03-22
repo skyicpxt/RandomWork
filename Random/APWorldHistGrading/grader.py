@@ -20,6 +20,7 @@ class CriterionResult:
     max_points: int
     points_earned: int
     evidence: str           # Quote or paraphrase from essay that earned the point
+    evidence_comment: str   # Brief explanation of WHY the evidence satisfies the criterion
     not_earned_reason: str  # Empty string if the point was earned
     suggestion: str         # Specific advice to improve this criterion
 
@@ -71,8 +72,9 @@ OUTPUT FORMAT (respond ONLY with this JSON, no other text):
       "name": "<criterion name exactly as in rubric>",
       "max_points": <int>,
       "points_earned": <int — 0 or up to max_points>,
-      "evidence": "<direct quote or paraphrase from the student's essay that earned the point, or 'N/A' if 0 points earned>",
-      "not_earned_reason": "<explanation of why the point was NOT earned, or empty string if earned>",
+      "evidence": "<see EVIDENCE RULES below>",
+      "evidence_comment": "<see EVIDENCE COMMENT RULES below>",
+      "not_earned_reason": "<see NOT-EARNED RULES below>",
       "suggestion": "<specific, actionable advice to improve this criterion>"
     }}
   ],
@@ -81,12 +83,43 @@ OUTPUT FORMAT (respond ONLY with this JSON, no other text):
 
 GRADING RULES:
 1. Award points ONLY if the student's essay clearly meets the criterion — be honest, not generous.
-2. For "evidence", quote directly from the essay when possible.
-3. For "not_earned_reason", be specific about what is missing or wrong.
-4. For "suggestion", give concrete, actionable advice (e.g., "Add sourcing for Document 3 by explaining how the merchant's economic self-interest shapes his positive portrayal of trade.").
 5. Do NOT invent or fabricate content the student did not write.
 6. Do NOT penalize grammar or spelling unless it obscures historical content.
 7. The DBQ complexity point is the hardest to earn — require evidence of nuance throughout the essay, not just a single sentence.
+
+EVIDENCE RULES (the "evidence" field):
+- If the point WAS earned: provide the specific sentence(s) or passage from the student's essay
+  that directly satisfied the criterion. Prefer a direct quote (with quotation marks) over a
+  paraphrase. If you must paraphrase, begin with "The student writes that…".
+- If the point was NOT earned: set "evidence" to "N/A".
+- Do NOT fabricate or embellish — only cite text that actually appears in the essay.
+- For multi-part criteria (e.g., Evidence from Documents tiers), cite evidence from each
+  document or piece of evidence that contributed to earning the point.
+- Keep evidence concise: one to three sentences maximum. If the relevant passage is long,
+  quote the most diagnostic phrase and summarize the rest.
+
+EVIDENCE COMMENT RULES (the "evidence_comment" field):
+- If the point WAS earned: write 1–2 sentences explaining specifically WHY the cited evidence
+  satisfies this criterion — what element of the rubric requirement it fulfills and how.
+  Do NOT restate the evidence; instead explain its significance to the criterion.
+  Example: "This establishes a line of reasoning by identifying trade as the mechanism
+  through which industrialization spread, going beyond a mere restatement of the prompt."
+- If the point was NOT earned: set "evidence_comment" to "N/A".
+
+NOT-EARNED REASON RULES (the "not_earned_reason" field):
+- If the point WAS earned: set "not_earned_reason" to "" (empty string).
+- If the point was NOT earned: write a specific, diagnostic explanation that tells the student
+  exactly what was missing or wrong. Do NOT write generic statements like "insufficient evidence"
+  or "needs more development." Instead:
+    * Name the specific gap: which document was missing, which sourcing element was absent,
+      what the thesis lacked, why the context was too brief, etc.
+    * Reference the rubric criterion explicitly (e.g., "The thesis does not establish a line
+      of reasoning — it restates the prompt without indicating why or how the claim is true.").
+    * For documents criteria, state how many were used vs. how many are required.
+    * For sourcing, identify which documents were sourced and what the explanation was missing
+      (e.g., "Document 2 is identified as a photograph but the student does not explain how
+      the photographer's purpose or audience shapes what the image conveys.").
+- Limit to 2-4 sentences. Be specific, factual, and constructive — not discouraging.
 """
 
 _DBQ_DOCS_SECTION_TEMPLATE = """SOURCE DOCUMENTS PROVIDED TO THE STUDENT:
@@ -119,22 +152,17 @@ def _build_grading_prompt(
 # OpenAI call with retry
 # ---------------------------------------------------------------------------
 
-_GRADING_SEED = 42  # Fixed seed for deterministic scoring across runs
-# Low default sampling: tiny variance vs temperature=0; pass 0.0 to grade_essay for strict determinism.
-_GRADING_TEMPERATURE = 0.1
-
-
 # Calls the OpenAI chat completions API with exponential backoff on rate limit errors.
 def _call_with_retry(
     client: OpenAI,
     messages: list[dict],
     model: str,
     max_retries: int = 4,
-    temperature: float = _GRADING_TEMPERATURE,
 ) -> str:
     """
     Calls the OpenAI chat completions API with exponential backoff on rate limit errors.
-    Uses the given temperature with a fixed seed; lower temperature yields more consistent scores.
+    Uses reasoning effort "high"; temperature and seed are omitted as they are not
+    supported by reasoning models.
     Returns the raw response text.
     """
     last_err = None
@@ -143,9 +171,8 @@ def _call_with_retry(
             response = client.chat.completions.create(
                 model=model,
                 messages=messages,
-                temperature=temperature,
-                seed=_GRADING_SEED,
-                max_tokens=2500,
+                reasoning_effort="high",
+                max_completion_tokens=8000,
             )
             return response.choices[0].message.content or ""
         except Exception as e:
@@ -168,22 +195,20 @@ def _call_with_retry(
 # Core grading function
 # ---------------------------------------------------------------------------
 
-# Grades one essay via the API using the rubric for category; temperature controls sampling (default is low).
+# Grades one essay via the API using the rubric for category.
 def grade_essay(
     client: OpenAI,
     category: str,
     question: str,
     answer: str,
     dbq_docs: Optional[str] = None,
-    model: str = "gpt-4o",
-    temperature: float = _GRADING_TEMPERATURE,
+    model: str = "gpt-5.4",
 ) -> GradeResult:
     """
     Grades a single essay (question + answer) against the official AP rubric for
     the given category ('DBQ', 'LEQ', or 'SAQ').
 
     For DBQ, optionally pass the source documents text as dbq_docs.
-    temperature: sampling temperature (0.0 = most deterministic; default is minimal randomness).
     Returns a GradeResult with full score breakdown, evidence, and suggestions.
     """
     rubric, max_score = get_rubric(category)
@@ -192,12 +217,12 @@ def grade_essay(
     prompt = _build_grading_prompt(category, question, answer, rubric_text, dbq_docs)
 
     messages = [
-        {"role": "system", "content": _SYSTEM_PROMPT},
+        {"role": "developer", "content": _SYSTEM_PROMPT},
         {"role": "user", "content": prompt},
     ]
 
     print(f"  Grading {category} essay with {model}...")
-    raw = _call_with_retry(client, messages, model, temperature=temperature)
+    raw = _call_with_retry(client, messages, model)
 
     # Parse JSON response
     try:
@@ -270,6 +295,7 @@ def grade_essay(
             max_points=criterion.max_points,
             points_earned=points_earned,
             evidence=model_r.get("evidence", "N/A"),
+            evidence_comment=model_r.get("evidence_comment", "N/A"),
             not_earned_reason=model_r.get("not_earned_reason", ""),
             suggestion=model_r.get("suggestion", ""),
         ))
