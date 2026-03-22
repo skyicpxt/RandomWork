@@ -52,7 +52,7 @@ INPUT_MODE_FILES: dict[str, Path] = {
 # When no --category: grade these three default single-format files.
 DEFAULT_SINGLE_MODES = ("DBQ", "LEQ", "SAQ")
 
-DEFAULT_MODEL = "gpt-4o"
+DEFAULT_MODEL = "gpt-5.4"
 
 
 def _rubric_category_for_filter(cli_category: Optional[str]) -> Optional[str]:

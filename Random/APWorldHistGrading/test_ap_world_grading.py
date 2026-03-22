@@ -387,6 +387,7 @@ class TestFormatGradeReportOutput(unittest.TestCase):
         self.assertIn("Second stem", preview_row)
 
 
+
 class TestPrintSummaryOutput(unittest.TestCase):
     """Summary table shape for multiple graded essays."""
 

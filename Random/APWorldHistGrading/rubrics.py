@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from typing import Optional
 
 
+
 @dataclass
 class RubricCriterion:
     """A single scorable criterion within a rubric."""
