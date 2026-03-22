@@ -1,56 +1,45 @@
 
 ========================================================================
-  ESSAY #1  |  Question1  |  TYPE: LEQ
+  ESSAY #1  |  Question1  |  TYPE: SAQ
 ========================================================================
-  QUESTION: Evaluate the extent to which industrialization in the nineteenth century caused significant changes in the role of women...
+  QUESTION: Part A Q: Briefly describe ONE cause of the Columbian Exchange. Part B Q: Briefly explain ONE effect of the Columbian Ex...
 
   ┌─────────────────────────────────────────────────┐
   │             1. SCORE BREAKDOWN                  │
   └─────────────────────────────────────────────────┘
 
-  TOTAL: [████████████████████] 6/6
+  TOTAL: [████████████████████] 3/3
 
   Criterion                                    Earned   Max
   -------------------------------------------- ------  ----
-  ✔ Thesis/Claim                                     1     1
-  ✔ Contextualization                                1     1
-  ✔ Evidence (1 pt): Specific Examples               1     1
-  ✔ Evidence (2 pts): Supports Argument              1     1
-  ✔ Analysis & Reasoning: Historical Reasoning       1     1
-  ✔ Analysis & Reasoning: Complexity                 1     1
+  ✔ Part A                                           1     1
+  ✔ Part B                                           1     1
+  ✔ Part C                                           1     1
 
   ┌─────────────────────────────────────────────────┐
   │        2. EVIDENCE THAT EARNED EACH POINT       │
   └─────────────────────────────────────────────────┘
 
-  ✔ Thesis/Claim (1/1 pt)
-  "The Industrial Revolution of the nineteenth century fundamentally
-  altered the economic and social landscape of Europe and North
-  America, producing significant but uneven changes in the lives of
-  women."
+  ✔ Part A (1/1 pt)
+  ""European imperial expansion, driven by the desire for new trade
+  routes and resources, created the transatlantic networks through
+  which plants, animals, diseases, and people flowed.""
 
-  ✔ Contextualization (1/1 pt)
-  "Prior to industrialization, women's work was largely domestic and
-  agrarian."
+  ✔ Part B (1/1 pt)
+  ""One significant effect of the Columbian Exchange on the Americas
+  was the catastrophic demographic collapse of indigenous
+  populations. European diseases such as smallpox, measles, and
+  influenza, to which Native Americans had no prior immunity, wiped
+  out an estimated 50–90% of indigenous peoples within a century of
+  contact.""
 
-  ✔ Evidence (1 pt): Specific Examples (1/1 pt)
-  "In Britain, women constituted the majority of workers in early
-  cotton mills, representing a dramatic departure from pre-
-  industrial gender norms."
-
-  ✔ Evidence (2 pts): Supports Argument (1/1 pt)
-  "This shift granted working-class women a degree of economic
-  independence, even if wages remained far below those of male
-  counterparts."
-
-  ✔ Analysis & Reasoning: Historical Reasoning (1/1 pt)
-  "Such contradictions highlight that industrialization's impact on
-  women was shaped heavily by class."
-
-  ✔ Analysis & Reasoning: Complexity (1/1 pt)
-  "In comparison, in non-industrialized regions such as sub-Saharan
-  Africa and much of Asia, women's roles changed primarily through
-  colonial disruption rather than industrial transformation."
+  ✔ Part C (1/1 pt)
+  ""One major effect of the Columbian Exchange on Europe was the
+  introduction of new crops such as potatoes, maize, and tomatoes
+  from the Americas. These crops, particularly the potato in Ireland
+  and Northern Europe, dramatically increased caloric availability,
+  contributing to population growth in the 17th and 18th
+  centuries.""
 
   ┌─────────────────────────────────────────────────┐
   │       3. POINTS NOT EARNED AND WHY              │
@@ -62,241 +51,194 @@
   │         4. SUGGESTIONS TO IMPROVE               │
   └─────────────────────────────────────────────────┘
 
-  • [Thesis/Claim]
-  Ensure the thesis is clear and directly addresses the prompt with
-  a specific line of reasoning.
+  • [Part A]
+  Keep centering your answer on one precise cause, such as European
+  exploration and imperial expansion after 1492, and phrase it as
+  the mechanism that enabled sustained contact.
 
-  • [Contextualization]
-  Expand on the broader historical context by discussing more about
-  pre-industrial society or other global contexts.
+  • [Part B]
+  Continue using a clear cause-and-effect structure like this,
+  pairing the effect with a specific example such as smallpox to
+  fully explain the impact.
 
-  • [Evidence (1 pt): Specific Examples]
-  Include more specific examples from different regions or
-  industries to strengthen the argument.
-
-  • [Evidence (2 pts): Supports Argument]
-  Ensure all evidence is explicitly tied to the argument and
-  consider using additional examples to reinforce the thesis.
-
-  • [Analysis & Reasoning: Historical Reasoning]
-  Continue to apply historical reasoning consistently throughout the
-  essay to strengthen the argument.
-
-  • [Analysis & Reasoning: Complexity]
-  Further develop the complexity by exploring more nuanced
-  perspectives or counterarguments.
+  • [Part C]
+  You can make this even stronger by keeping the explanation tightly
+  focused on one region and one clear result, such as population
+  growth in Europe due to calorie-rich American crops.
 
   ── Overall Feedback ──
-  The essay effectively addresses the prompt with a clear thesis and
-  well-supported arguments. To strengthen the essay, consider
-  expanding on the contextualization and providing more varied
-  examples. Additionally, further developing the complexity by
-  exploring more nuanced perspectives or counterarguments would
-  enhance the analysis.
+  This response earns full credit because each part is clearly
+  labeled, historically accurate, and supported with specific
+  evidence. To strengthen it further, make each answer slightly more
+  concise since SAQs reward brief, direct responses rather than
+  extended elaboration. Also, be careful with broad phrasing like
+  "for the first time in recorded history" and prefer more precise
+  wording such as "sustained transatlantic contact after 1492."
 
 ========================================================================
 
 ========================================================================
-  ESSAY #2  |  Question2  |  TYPE: LEQ
+  ESSAY #2  |  Question2  |  TYPE: SAQ
 ========================================================================
-  QUESTION: Evaluate the extent to which the expansion of European maritime empires between 1450 and 1750 transformed economic syste...
+  QUESTION: Part A Q: Describe one change that resulted from Zheng He's voyages in the Indian Ocean in the period 1400–1450. Part B ...
 
   ┌─────────────────────────────────────────────────┐
   │             1. SCORE BREAKDOWN                  │
   └─────────────────────────────────────────────────┘
 
-  TOTAL: [█████████████████░░░] 5/6
+  TOTAL: [████████████████████] 3/3
 
   Criterion                                    Earned   Max
   -------------------------------------------- ------  ----
-  ✔ Thesis/Claim                                     1     1
-  ✘ Contextualization                                0     1
-  ✔ Evidence (1 pt): Specific Examples               1     1
-  ✔ Evidence (2 pts): Supports Argument              1     1
-  ✔ Analysis & Reasoning: Historical Reasoning       1     1
-  ✔ Analysis & Reasoning: Complexity                 1     1
+  ✔ Part A                                           1     1
+  ✔ Part B                                           1     1
+  ✔ Part C                                           1     1
 
   ┌─────────────────────────────────────────────────┐
   │        2. EVIDENCE THAT EARNED EACH POINT       │
   └─────────────────────────────────────────────────┘
 
-  ✔ Thesis/Claim (1/1 pt)
-  "European maritime expansion between 1450 and 1750 fundamentally
-  reshaped American economies by integrating the hemisphere into
-  Atlantic commercial circuits, though the extent of transformation
-  varied by region and often built on pre-existing structures."
+  ✔ Part A (1/1 pt)
+  ""One change resulting from Zheng He's voyages was the expansion
+  of Chinese diplomatic influence across Southeast Asia, South Asia,
+  and East Africa. By presenting lavish gifts and demanding tribute
+  from rulers along the route, the Ming Dynasty used these voyages
+  to project imperial power and bring dozens of states into the
+  Chinese tributary system...""
 
-  ✔ Evidence (1 pt): Specific Examples (1/1 pt)
-  "The Spanish extraction of silver from Potosí and Mexican mines
-  fueled transatlantic trade and linked the Americas to European and
-  Asian markets through the Manila galleon trade."
+  ✔ Part B (1/1 pt)
+  ""One continuity in Indian Ocean trade from 1200 to 1450 was the
+  reliance on monsoon winds to drive maritime commerce. Merchants
+  from Arabia, India, East Africa, and Southeast Asia had long
+  coordinated their voyages with the seasonal reversal of the
+  monsoon...""
 
-  ✔ Evidence (2 pts): Supports Argument (1/1 pt)
-  "Portuguese Brazil's sugar plantations exemplified the plantation
-  complex: African slavery, large estates, and monoculture for
-  export."
-
-  ✔ Analysis & Reasoning: Historical Reasoning (1/1 pt)
-  "Overall, European empire caused deep economic transformation in
-  the Americas—especially where mining and plantation agriculture
-  dominated—while continuity persisted in many local practices, so
-  the extent of change was significant but geographically uneven."
-
-  ✔ Analysis & Reasoning: Complexity (1/1 pt)
-  "Transformation was incomplete. Indigenous communities in the
-  Andes and Mesoamerica retained elements of reciprocal labor and
-  local markets beneath colonial administration."
+  ✔ Part C (1/1 pt)
+  ""The end of Zheng He's voyages led to China's gradual withdrawal
+  from active participation in Indian Ocean maritime trade...
+  Without Chinese naval presence, European merchants established
+  fortified trading posts along the same routes Zheng He had sailed,
+  ultimately reshaping Indian Ocean commerce in ways that
+  disadvantaged Chinese merchants and reduced Ming influence in the
+  region.""
 
   ┌─────────────────────────────────────────────────┐
   │       3. POINTS NOT EARNED AND WHY              │
   └─────────────────────────────────────────────────┘
 
-  ✘ Contextualization (missed 1 of 1 pt)
-  The essay does not provide a broader historical context that is
-  developed and linked to the argument. It lacks a description of
-  events or processes before, during, or after the time frame that
-  relate to the prompt.
+  All points were earned — excellent work!
 
   ┌─────────────────────────────────────────────────┐
   │         4. SUGGESTIONS TO IMPROVE               │
   └─────────────────────────────────────────────────┘
 
-  • [Thesis/Claim]
-  Ensure the thesis is clear and directly addresses the prompt,
-  establishing a line of reasoning that is carried throughout the
-  essay.
+  • [Part A]
+  To make this even stronger, add one concrete example of a place or
+  ruler affected by this change, such as Malacca or rulers on the
+  Swahili Coast.
 
-  • [Contextualization]
-  Include a paragraph that sets the stage for European maritime
-  expansion by discussing relevant historical events or processes,
-  such as the Age of Exploration or the Columbian Exchange, and link
-  these to the economic transformations in the Americas.
+  • [Part B]
+  You could strengthen this by pairing the continuity with a
+  specific example, such as Arab dhows or Indian merchants
+  continuing to dominate segments of regional trade.
 
-  • [Evidence (1 pt): Specific Examples]
-  Continue to provide specific examples that are directly relevant
-  to the prompt, ensuring they are well-explained and integrated
-  into the argument.
-
-  • [Evidence (2 pts): Supports Argument]
-  Use multiple pieces of evidence to support the argument, ensuring
-  each piece is clearly tied to the thesis and contributes to the
-  overall argument.
-
-  • [Analysis & Reasoning: Historical Reasoning]
-  Maintain the use of historical reasoning throughout the essay,
-  clearly applying concepts like continuity and change over time to
-  strengthen the argument.
-
-  • [Analysis & Reasoning: Complexity]
-  Continue to demonstrate complexity by exploring multiple
-  perspectives and acknowledging exceptions or counterarguments
-  throughout the essay.
+  • [Part C]
+  To improve this further, make the impact on China even more
+  explicit by naming state policies such as maritime restriction or
+  emphasizing the loss of overseas influence and naval presence.
 
   ── Overall Feedback ──
-  The essay effectively addresses the prompt with a clear thesis and
-  uses specific evidence to support its argument. To improve, add a
-  developed contextualization that links broader historical events
-  to the economic transformations in the Americas. Ensure that the
-  complexity demonstrated is sustained throughout the essay,
-  enhancing the depth of analysis.
+  This is a strong SAQ because each part is clearly labeled,
+  historically accurate, and directly answers the prompt. To
+  strengthen it further, include one concrete example in each
+  section, since specific places, peoples, or policies make short
+  answers even more persuasive. Also, in Part C, keep the focus
+  tightly on how the decision affected China itself, not just the
+  broader Indian Ocean world.
 
 ========================================================================
 
 ========================================================================
-  ESSAY #3  |  Question3  |  TYPE: LEQ
+  ESSAY #3  |  Question3  |  TYPE: SAQ
 ========================================================================
-  QUESTION: Explain how technological developments during the First World War influenced the course and outcome of the conflict.
+  QUESTION: Part A Q: Identify one similarity in the administrative techniques used by two different imperial states in the period 1...
 
   ┌─────────────────────────────────────────────────┐
   │             1. SCORE BREAKDOWN                  │
   └─────────────────────────────────────────────────┘
 
-  TOTAL: [█████████████░░░░░░░] 4/6
+  TOTAL: [████████████████████] 3/3
 
   Criterion                                    Earned   Max
   -------------------------------------------- ------  ----
-  ✔ Thesis/Claim                                     1     1
-  ✘ Contextualization                                0     1
-  ✔ Evidence (1 pt): Specific Examples               1     1
-  ✔ Evidence (2 pts): Supports Argument              1     1
-  ✔ Analysis & Reasoning: Historical Reasoning       1     1
-  ✘ Analysis & Reasoning: Complexity                 0     1
+  ✔ Part A                                           1     1
+  ✔ Part B                                           1     1
+  ✔ Part C                                           1     1
 
   ┌─────────────────────────────────────────────────┐
   │        2. EVIDENCE THAT EARNED EACH POINT       │
   └─────────────────────────────────────────────────┘
 
-  ✔ Thesis/Claim (1/1 pt)
-  "Technological developments during the First World War intensified
-  stalemate and attrition on the Western Front while also shaping
-  which powers could sustain total war."
+  ✔ Part A (1/1 pt)
+  ""Both the Mongol Empire and the Ottoman Empire relied on a loyal,
+  centrally controlled military corps to maintain imperial
+  authority." The student also writes, "In both cases, the empire
+  deliberately bypassed traditional local elites to build a military
+  force whose loyalty was to the central authority rather than to
+  regional nobles or clans.""
 
-  ✔ Evidence (1 pt): Specific Examples (1/1 pt)
-  "Trenches, barbed wire, and machine guns favored defenders and
-  produced prolonged positional warfare; offensives such as the
-  Somme illustrated enormous casualties for limited gains."
+  ✔ Part B (1/1 pt)
+  ""Imperial states adopted centralized administration because it
+  allowed rulers to project power over vast, diverse territories
+  without relying on potentially disloyal local lords." The student
+  adds, "The Song Dynasty's civil service examination system, for
+  example, created a bureaucratic class of merit-selected officials
+  loyal to the emperor, enabling effective governance over a large
+  and complex population.""
 
-  ✔ Evidence (2 pts): Supports Argument (1/1 pt)
-  "Artillery became more sophisticated in range and volume,
-  devastating supply lines and troop concentrations. Submarines
-  threatened Allied shipping and nearly starved Britain before
-  convoy systems and American entry shifted the naval balance."
-
-  ✔ Analysis & Reasoning: Historical Reasoning (1/1 pt)
-  "Thus technology deepened the war's destructiveness and
-  contributed to Allied victory through combined industrial, naval,
-  and eventually manpower advantages rather than through any single
-  breakthrough weapon."
+  ✔ Part C (1/1 pt)
+  ""Imperial states such as the Mali Empire and the Byzantine Empire
+  maintained centralized hierarchies with a single paramount ruler
+  who controlled taxation, military mobilization, and law across
+  broad territories." The student contrasts this with decentralized
+  regions: "the feudal kingdoms of Western Europe distributed power
+  among competing lords, each controlling their own lands and
+  armies, with the monarch holding only nominal authority.""
 
   ┌─────────────────────────────────────────────────┐
   │       3. POINTS NOT EARNED AND WHY              │
   └─────────────────────────────────────────────────┘
 
-  ✘ Contextualization (missed 1 of 1 pt)
-  The essay does not provide a broader historical context that links
-  the technological developments to events before or after the war.
-
-  ✘ Analysis & Reasoning: Complexity (missed 1 of 1 pt)
-  The essay does not demonstrate a complex understanding by
-  exploring multiple perspectives or connecting to broader themes.
+  All points were earned — excellent work!
 
   ┌─────────────────────────────────────────────────┐
   │         4. SUGGESTIONS TO IMPROVE               │
   └─────────────────────────────────────────────────┘
 
-  • [Thesis/Claim]
-  Ensure the thesis is clearly stated at the beginning or end of the
-  essay to guide the reader through the argument.
+  • [Part A]
+  To make this even stronger, you could tie the similarity even more
+  explicitly to administration by mentioning that both states used
+  centrally appointed personnel to enforce imperial control over
+  conquered territories.
 
-  • [Contextualization]
-  Include background information on the state of warfare before WWI
-  or the impact of these technologies on post-war developments to
-  provide context.
+  • [Part B]
+  A concise way to improve this part would be to connect the reason
+  even more directly to imperial needs such as tax collection,
+  controlling ethnic diversity, or preventing regional rebellion.
 
-  • [Evidence (1 pt): Specific Examples]
-  Continue to provide specific examples and elaborate on their
-  significance to strengthen the argument.
-
-  • [Evidence (2 pts): Supports Argument]
-  Ensure each piece of evidence is clearly tied to the thesis and
-  contributes to the overall argument.
-
-  • [Analysis & Reasoning: Historical Reasoning]
-  Maintain a clear focus on causation by linking technological
-  developments directly to changes in the war's progression and
-  outcome.
-
-  • [Analysis & Reasoning: Complexity]
-  Incorporate analysis of how different technologies interacted or
-  how they were perceived by different nations to add complexity.
+  • [Part C]
+  You could strengthen this further by naming one specific
+  decentralized political system, such as feudalism, at the start of
+  the response to make the comparison even more direct.
 
   ── Overall Feedback ──
-  The essay provides a clear thesis and uses specific evidence to
-  support its argument effectively. To improve, add
-  contextualization by linking the technological developments to
-  broader historical events. Additionally, strive for complexity by
-  exploring multiple perspectives or the interplay between different
-  technological advancements.
+  This is a strong SAQ response because each part is clearly
+  labeled, directly answers the prompt, and uses specific historical
+  examples. To improve even further, keep making your claims as
+  tightly connected to the exact wording of the question as
+  possible—for example, explicitly tying examples to administration,
+  centralization, or political structure. Your use of comparison and
+  specificity is already a major strength.
 
 ========================================================================
 
@@ -305,9 +247,9 @@
 ========================================================================
   #    Type        Score  Label      Question (preview)
   ---- ------ ----------  ----------  ------------------------------
-  1    LEQ           6/6  Question1   Evaluate the extent to which i...
-  2    LEQ           5/6  Question2   Evaluate the extent to which t...
-  3    LEQ           4/6  Question3   Explain how technological deve...
+  1    SAQ           3/3  Question1   Part A Q: Briefly describe ONE...
+  2    SAQ           3/3  Question2   Part A Q: Describe one change ...
+  3    SAQ           3/3  Question3   Part A Q: Identify one similar...
   ---- ------ ----------  ----------  ------------------------------
-  TOTAL                  15/18
+  TOTAL                  9/9
 ========================================================================

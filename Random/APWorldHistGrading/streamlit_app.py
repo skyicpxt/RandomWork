@@ -21,6 +21,12 @@ from dotenv import load_dotenv
 from openai import OpenAI
 
 from grader import GradeResult, grade_essay
+from qa_parser import (
+    QAFormatError as _QAFormatError,
+    _QUESTION_MARKER_RE,
+    _normalize_saq_subpart_labels,
+    parse_qa_text as _parse_qa_entries,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -31,7 +37,7 @@ _SCRIPT_DIR = Path(__file__).resolve().parent
 load_dotenv(_SCRIPT_DIR.parent / ".env")
 
 _DEFAULT_MODEL = "gpt-5.4"
-_SUPPORTED_MODELS = ["gpt-5.4", "gpt-4o", "gpt-4o-mini", "gpt-4-turbo"]
+_SUPPORTED_MODELS = ["gpt-5.4"]
 _ESSAY_TYPES = ["DBQ", "LEQ", "SAQ"]
 _IMAGE_TYPES = ["jpg", "jpeg", "png", "webp"]
 _PDF_TYPE = ["pdf"]
@@ -67,6 +73,7 @@ You may also include a DOCS: section in this box if not uploading files.
 _FORMAT_SAQ = """\
 CATEGORY: SAQ
 
+Question1
 (a)
 Q: Briefly describe ONE cause of the Columbian Exchange.
 A: The Columbian Exchange was caused primarily by Columbus's 1492 voyage...
@@ -78,6 +85,19 @@ A: One significant effect was the catastrophic demographic collapse...
 (c)
 Q: Briefly explain ONE effect on Europe or Africa.
 A: One major effect on Europe was the introduction of new crops...
+
+Question2
+(a)
+Q: Describe one change that resulted from the voyages depicted in the map.
+A: One change resulting from Zheng He's voyages was China's status...
+
+(b)
+Q: Describe one continuity in the Indian Ocean basin from 1200-1450.
+A: One continuity was reliance on monsoon winds...
+
+(c)
+Q: Describe one way the decision to end the voyages impacted China.
+A: The end of Zheng He's voyages marked the end of China's dominance...
 """
 
 _FORMAT_EXAMPLES = {"DBQ": _FORMAT_DBQ, "LEQ": _FORMAT_LEQ, "SAQ": _FORMAT_SAQ}
@@ -208,12 +228,12 @@ def _parse_saq(lines: list[str]) -> tuple[str, str, None]:
     return "\n\n".join(q_chunks), "\n\n".join(a_chunks), None
 
 
-def parse_qa_text(
+def _parse_single_qa_text(
     text: str,
     category: str,
 ) -> tuple[str, str, Optional[str]]:
     """
-    Parses combined Q&A text in the same format as the existing QandA .txt files.
+    Parses combined Q&A text for a single question (the existing single-question format).
     Returns (question, answer, dbq_docs_from_text).
     dbq_docs_from_text is None unless a DOCS: section is found in the text.
     For SAQ, sub-parts (a)/(b)/(c) are merged into combined question/answer strings.
@@ -365,6 +385,12 @@ def format_report_txt(result: GradeResult) -> str:
     lines.append(sep)
     lines.append("")
 
+    q_preview = " ".join(result.question.split())
+    if len(q_preview) > 200:
+        q_preview = q_preview[:200] + "..."
+    lines.append(f"  QUESTION: {q_preview}")
+    lines.append("")
+
     # ── Section 1: Score Breakdown ──
     lines.append("  ┌─────────────────────────────────────────────────┐")
     lines.append("  │             1. SCORE BREAKDOWN                  │")
@@ -508,10 +534,182 @@ def render_grade_result(result: GradeResult) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Grading helper — parses Q&A, calls the API, and renders results in place.
-# Extracted so it can be called from both the normal path and the mismatch-
-# confirmation path without duplicating code.
+# Grading helpers — parse Q&A, call the API, and render results in place.
+# _grade_and_render dispatches to single- or multi-question mode automatically.
 # ---------------------------------------------------------------------------
+
+def _has_multi_question_markers(text: str) -> bool:
+    """Returns True if the text contains Question1 / Question2 / … markers."""
+    return bool(re.search(r"^Question\s*\d+\s*:?\s*$", text, re.IGNORECASE | re.MULTILINE))
+
+
+def _format_summary_txt(results: list[tuple[int, str, GradeResult]]) -> str:
+    """Formats a combined score summary section for the downloadable multi-question report."""
+    sep = "=" * 72
+    lines = ["", sep, "  GRADING SUMMARY", sep]
+    lines.append(f"  {'#':<4} {'Label':<12} {'Type':<6} {'Score':>10}")
+    lines.append(f"  {'-'*4} {'-'*12} {'-'*6} {'-'*10}")
+    total_e = total_p = 0
+    for i, lbl, r in results:
+        lines.append(f"  {i:<4} {lbl:<12} {r.category:<6} {r.total_earned}/{r.total_possible}")
+        total_e += r.total_earned
+        total_p += r.total_possible
+    lines.append(f"  {'-'*36}")
+    lines.append(f"  {'TOTAL':<22} {total_e}/{total_p}")
+    lines.append(sep)
+    return "\n".join(lines)
+
+
+def _grade_single_entry(
+    client: OpenAI,
+    cat: str,
+    question: str,
+    answer: str,
+    docs: Optional[str],
+    model: str,
+    label: str = "",
+) -> Optional[GradeResult]:
+    """
+    Grades a single prepared entry (question + answer already extracted) and renders results.
+    Returns the GradeResult or None on failure.
+    """
+    with st.spinner(f"Grading {cat}{' (' + label + ')' if label else ''} with {model}… this may take 15–30 seconds."):
+        try:
+            result: GradeResult = grade_essay(
+                client=client,
+                category=cat,
+                question=question,
+                answer=answer,
+                dbq_docs=docs,
+                model=model,
+            )
+        except Exception as e:
+            st.error(f"Grading failed: {e}")
+            return None
+
+    st.success(f"Grading complete! Score: {result.total_earned}/{result.total_possible}")
+    render_grade_result(result)
+    return result
+
+
+def _render_download_buttons(report_txt: str, filename: str) -> None:
+    """Renders the download + copy-text buttons for a report."""
+    col_dl, col_copy = st.columns(2)
+    with col_dl:
+        st.download_button(
+            label="Download Report (.txt)",
+            data=report_txt.encode("utf-8"),
+            file_name=filename,
+            mime="text/plain",
+            use_container_width=True,
+        )
+    with col_copy:
+        with st.expander("Copy Report Text", expanded=False):
+            st.code(report_txt, language=None)
+
+
+def _grade_and_render_single(
+    client: OpenAI,
+    essay_type: str,
+    raw_qa: str,
+    dbq_docs_text: Optional[str],
+    model: str,
+) -> None:
+    """Parses raw_qa as a single question, grades it, and renders the full results UI."""
+    try:
+        question, answer, docs_from_text = _parse_single_qa_text(raw_qa, essay_type)
+    except ValueError as e:
+        st.error(str(e))
+        return
+
+    effective_docs: Optional[str] = dbq_docs_text or docs_from_text or None
+    result = _grade_single_entry(client, essay_type, question, answer, effective_docs, model)
+    if result is None:
+        return
+
+    report_txt = format_report_txt(result)
+    _render_download_buttons(report_txt, f"grading_report_{essay_type}.txt")
+
+
+def _grade_and_render_multi(
+    client: OpenAI,
+    essay_type: str,
+    raw_qa: str,
+    dbq_docs_text: Optional[str],
+    model: str,
+) -> None:
+    """
+    Parses raw_qa as multiple Question1/Question2/… entries, grades each one
+    separately, and renders per-question results plus a combined summary.
+    """
+    try:
+        entries = _parse_qa_entries(raw_qa, default_category=essay_type)
+    except _QAFormatError as e:
+        st.error(str(e))
+        return
+
+    if not entries:
+        st.error("No questions found in the input. Check the format guide.")
+        return
+
+    st.info(f"Detected **{len(entries)} question(s)** in your input. Grading each separately…")
+
+    if len(entries) == 1:
+        entry = entries[0]
+        cat = entry["category"]
+        q = _normalize_saq_subpart_labels(entry["question"]) if cat == "SAQ" else entry["question"]
+        a = _normalize_saq_subpart_labels(entry["answer"]) if cat == "SAQ" else entry["answer"]
+        docs = entry.get("docs") or dbq_docs_text or None
+        result = _grade_single_entry(client, cat, q, a, docs, model)
+        if result:
+            _render_download_buttons(format_report_txt(result), f"grading_report_{cat}.txt")
+        return
+
+    # Multiple questions — grade each and show results with a per-question header
+    graded: list[tuple[int, str, GradeResult]] = []
+    all_reports: list[str] = []
+
+    for i, entry in enumerate(entries, 1):
+        cat = entry["category"]
+        q = _normalize_saq_subpart_labels(entry["question"]) if cat == "SAQ" else entry["question"]
+        a = _normalize_saq_subpart_labels(entry["answer"]) if cat == "SAQ" else entry["answer"]
+        docs = entry.get("docs") or dbq_docs_text or None
+        label = entry.get("question_label") or f"Question{i}"
+
+        st.markdown(f"---")
+        st.subheader(f"Question {i} — {cat} ({label})")
+
+        result = _grade_single_entry(client, cat, q, a, docs, model, label=label)
+        if result is None:
+            continue
+
+        graded.append((i, label, result))
+        all_reports.append(format_report_txt(result))
+
+    if not graded:
+        return
+
+    # Combined summary
+    st.divider()
+    total_e = sum(r.total_earned for _, _, r in graded)
+    total_p = sum(r.total_possible for _, _, r in graded)
+    pct = total_e / total_p if total_p else 0
+
+    st.subheader("Combined Score Summary")
+    col1, col2 = st.columns([1, 3])
+    col1.metric("Total Score", f"{total_e} / {total_p}")
+    col2.progress(pct, text=f"{pct:.0%} overall ({total_e}/{total_p} pts)")
+
+    summary_data = [
+        {"#": i, "Label": lbl, "Type": r.category, "Score": f"{r.total_earned}/{r.total_possible}"}
+        for i, lbl, r in graded
+    ]
+    st.table(summary_data)
+
+    all_reports.append(_format_summary_txt(graded))
+    combined_report = "\n\n".join(all_reports)
+    _render_download_buttons(combined_report, "grading_report_multi.txt")
+
 
 def _grade_and_render(
     client: OpenAI,
@@ -520,46 +718,14 @@ def _grade_and_render(
     dbq_docs_text: Optional[str],
     model: str,
 ) -> None:
-    """Parses raw_qa, grades the essay, and renders the full results UI."""
-    try:
-        question, answer, docs_from_text = parse_qa_text(raw_qa, essay_type)
-    except ValueError as e:
-        st.error(str(e))
-        return
-
-    effective_docs: Optional[str] = dbq_docs_text or docs_from_text or None
-
-    with st.spinner(f"Grading {essay_type} essay with {model}… this may take 15–30 seconds."):
-        try:
-            result: GradeResult = grade_essay(
-                client=client,
-                category=essay_type,
-                question=question,
-                answer=answer,
-                dbq_docs=effective_docs,
-                model=model,
-            )
-        except Exception as e:
-            st.error(f"Grading failed: {e}")
-            return
-
-    st.success("Grading complete!")
-    render_grade_result(result)
-
-    report_txt = format_report_txt(result)
-
-    col_dl, col_copy = st.columns(2)
-    with col_dl:
-        st.download_button(
-            label="Download Report (.txt)",
-            data=report_txt.encode("utf-8"),
-            file_name=f"grading_report_{essay_type}.txt",
-            mime="text/plain",
-            use_container_width=True,
-        )
-    with col_copy:
-        with st.expander("Copy Report Text", expanded=False):
-            st.code(report_txt, language=None)
+    """
+    Entry point for grading. Automatically detects multi-question format
+    (Question1 / Question2 / … markers) and dispatches accordingly.
+    """
+    if _has_multi_question_markers(raw_qa):
+        _grade_and_render_multi(client, essay_type, raw_qa, dbq_docs_text, model)
+    else:
+        _grade_and_render_single(client, essay_type, raw_qa, dbq_docs_text, model)
 
 
 # ---------------------------------------------------------------------------
@@ -623,7 +789,9 @@ def main() -> None:
         )
         if essay_type == "SAQ":
             st.markdown(
-                "For SAQ, use `(a)`, `(b)`, `(c)` labels before each sub-part's `Q:` and `A:`."
+                "For SAQ, use `Question1`, `Question2`, … labels to separate multiple questions. "
+                "Within each question, use `(a)`, `(b)`, `(c)` labels before each sub-part's `Q:` and `A:`. "
+                "A single question without `Question1` labels is also accepted."
             )
         if essay_type == "DBQ":
             st.markdown(
@@ -732,6 +900,10 @@ def main() -> None:
             st.error("Please enter or upload the Q&A text before grading.")
             st.stop()
 
+        # Multi-question format bypasses mismatch detection — the user has
+        # explicitly structured input with Question1/Question2/… labels.
+        _is_multi = _has_multi_question_markers(raw_qa)
+
         # Heuristics for mismatch detection used across all three guards below.
         # Matches "Document 1", "Doc. 2", "Doc 3", "(Document 4)", etc.
         _doc_citation_re = re.compile(r"\b(?:document|doc\.?)\s*\d+", re.IGNORECASE)
@@ -744,33 +916,36 @@ def main() -> None:
 
         _warnings: list[str] = []
 
-        # Guard 1 — SAQ selected but input looks like a full essay.
-        if essay_type == "SAQ" and not _has_part_labels and _answer_word_count > 150:
-            _warnings.append(
-                f"**SAQ mismatch:** You selected SAQ but the input looks like a full essay "
-                f"(no (a)/(b)/(c) part labels found, and the text is {_answer_word_count} words long). "
-                "SAQ answers should be short paragraphs labeled by part. "
-                "If this is an LEQ or DBQ, please cancel and change the essay type above."
-            )
-
-        # Guard 2 — DBQ selected but answer contains no document citations.
+        # Guard 2 always runs — DBQ selected but answer contains no document citations.
+        # This catches accidentally picking DBQ when the content is an SAQ or LEQ,
+        # regardless of whether the input uses multi-question (Question1/2/…) format.
         if essay_type == "DBQ" and not _has_doc_citations:
             _warnings.append(
                 "**DBQ mismatch:** You selected DBQ but the answer contains no document "
                 "citations (e.g. \"Document 1\", \"Doc. 2\"). DBQ essays must reference "
-                "the provided source documents. If this is an LEQ, please cancel and "
+                "the provided source documents. If this is an SAQ or LEQ, please cancel and "
                 "change the essay type above. If you continue, Evidence from Documents "
                 "points will almost certainly not be earned."
             )
 
-        # Guard 3 — LEQ or SAQ selected but answer contains document citations.
-        if essay_type in ("LEQ", "SAQ") and _has_doc_citations:
-            _warnings.append(
-                f"**{essay_type} mismatch:** You selected {essay_type} but the answer "
-                "contains document citations (e.g. \"Document 1\"). "
-                f"{essay_type} essays do not use source documents — only DBQ does. "
-                "If this is a DBQ, please cancel and change the essay type above."
-            )
+        if not _is_multi:
+            # Guard 1 — SAQ selected but input looks like a full essay.
+            if essay_type == "SAQ" and not _has_part_labels and _answer_word_count > 150:
+                _warnings.append(
+                    f"**SAQ mismatch:** You selected SAQ but the input looks like a full essay "
+                    f"(no (a)/(b)/(c) part labels found, and the text is {_answer_word_count} words long). "
+                    "SAQ answers should be short paragraphs labeled by part. "
+                    "If this is an LEQ or DBQ, please cancel and change the essay type above."
+                )
+
+            # Guard 3 — LEQ or SAQ selected but answer contains document citations.
+            if essay_type in ("LEQ", "SAQ") and _has_doc_citations:
+                _warnings.append(
+                    f"**{essay_type} mismatch:** You selected {essay_type} but the answer "
+                    "contains document citations (e.g. \"Document 1\"). "
+                    f"{essay_type} essays do not use source documents — only DBQ does. "
+                    "If this is a DBQ, please cancel and change the essay type above."
+                )
 
         if _warnings:
             # Save params and rerun to show the blocking confirmation UI.

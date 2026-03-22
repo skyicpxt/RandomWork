@@ -322,9 +322,9 @@ class TestFormatGradeReportOutput(unittest.TestCase):
     def _sample_saq_result(self) -> GradeResult:
         """Build a minimal SAQ GradeResult matching rubric structure."""
         criteria = [
-            CriterionResult("Part A", 1, 1, "Student wrote X.", "", "Keep it up."),
-            CriterionResult("Part B", 1, 0, "N/A", "Missing B.", "Add B."),
-            CriterionResult("Part C", 1, 1, "Student wrote Y.", "", ""),
+            CriterionResult("Part A", 1, 1, "Student wrote X.", "", "", "Keep it up."),
+            CriterionResult("Part B", 1, 0, "N/A", "", "Missing B.", "Add B."),
+            CriterionResult("Part C", 1, 1, "Student wrote Y.", "", "", ""),
         ]
         return GradeResult(
             category="SAQ",
@@ -375,9 +375,9 @@ class TestFormatGradeReportOutput(unittest.TestCase):
             total_earned=3,
             total_possible=3,
             criteria_results=[
-                CriterionResult("Part A", 1, 1, "e", "", ""),
-                CriterionResult("Part B", 1, 1, "e", "", ""),
-                CriterionResult("Part C", 1, 1, "e", "", ""),
+                CriterionResult("Part A", 1, 1, "e", "", "", ""),
+                CriterionResult("Part B", 1, 1, "e", "", "", ""),
+                CriterionResult("Part C", 1, 1, "e", "", "", ""),
             ],
             overall_suggestions="",
         )
@@ -394,17 +394,17 @@ class TestPrintSummaryOutput(unittest.TestCase):
     def test_summary_contains_header_and_totals(self) -> None:
         r1 = GradeResult(
             "SAQ", "Q1", "A1", 2, 3, [
-                CriterionResult("Part A", 1, 1, "e", "", "s"),
-                CriterionResult("Part B", 1, 1, "e", "", "s"),
-                CriterionResult("Part C", 1, 0, "N/A", "n", "s"),
+                CriterionResult("Part A", 1, 1, "e", "", "", "s"),
+                CriterionResult("Part B", 1, 1, "e", "", "", "s"),
+                CriterionResult("Part C", 1, 0, "N/A", "", "n", "s"),
             ],
             "ok",
         )
         r2 = GradeResult(
             "SAQ", "Q2", "A2", 3, 3, [
-                CriterionResult("Part A", 1, 1, "e", "", ""),
-                CriterionResult("Part B", 1, 1, "e", "", ""),
-                CriterionResult("Part C", 1, 1, "e", "", ""),
+                CriterionResult("Part A", 1, 1, "e", "", "", ""),
+                CriterionResult("Part B", 1, 1, "e", "", "", ""),
+                CriterionResult("Part C", 1, 1, "e", "", "", ""),
             ],
             "ok",
         )

@@ -162,9 +162,8 @@ def _call_with_retry(
 ) -> str:
     """
     Calls the OpenAI chat completions API with exponential backoff on rate limit errors.
-    Uses reasoning effort "high"; temperature and seed are omitted as they are not
-    supported by reasoning models.
-    Returns the raw response text.
+    Uses reasoning_effort="high" and omits temperature/seed (not supported by reasoning models).
+    Returns the raw response text, or raises ValueError if the response is empty.
     """
     last_err = None
     for attempt in range(max_retries):
@@ -173,9 +172,16 @@ def _call_with_retry(
                 model=model,
                 messages=messages,
                 reasoning_effort="high",
-                max_completion_tokens=8000,
+                max_completion_tokens=16000,
             )
-            return response.choices[0].message.content or ""
+            content = response.choices[0].message.content
+            if not content:
+                raise ValueError(
+                    "The model returned an empty response. "
+                    "This may mean the model hit its output token limit or encountered "
+                    "an internal error. Try again or reduce the length of the input."
+                )
+            return content
         except Exception as e:
             last_err = e
             is_rate_limit = (
@@ -225,17 +231,25 @@ def grade_essay(
     print(f"  Grading {category} essay with {model}...")
     raw = _call_with_retry(client, messages, model)
 
-    # Parse JSON response
+    # Parse JSON response — strip accidental markdown fences and give a clear error if parsing fails.
     try:
         data = json.loads(raw)
     except json.JSONDecodeError:
-        # Attempt to strip accidental markdown fences
         cleaned = raw.strip()
         if cleaned.startswith("```"):
             cleaned = "\n".join(cleaned.split("\n")[1:])
         if cleaned.endswith("```"):
             cleaned = "\n".join(cleaned.split("\n")[:-1])
-        data = json.loads(cleaned)
+        cleaned = cleaned.strip()
+        try:
+            data = json.loads(cleaned)
+        except json.JSONDecodeError as exc:
+            snippet = raw[:300] if raw else "<empty>"
+            raise ValueError(
+                f"The model's response could not be parsed as JSON. "
+                f"This usually means the model returned plain text instead of the expected JSON format. "
+                f"Try switching to a different model.\n\nResponse snippet: {snippet!r}"
+            ) from exc
 
     # Build CriterionResult list — match model output back to rubric criteria.
     #
