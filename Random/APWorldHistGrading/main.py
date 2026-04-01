@@ -33,6 +33,7 @@ from qa_parser import (
     _normalize_saq_subpart_labels,
     parse_qa_file,
 )
+from report_formatter import format_grade_report, _preview_one_line
 
 # ---------------------------------------------------------------------------
 # Paths & env
@@ -80,123 +81,11 @@ def _rubric_category_for_filter(cli_category: Optional[str]) -> Optional[str]:
 
 
 # ---------------------------------------------------------------------------
-# Output formatting  (parsing is delegated to qa_parser.py)
+# Output formatting  (report body delegated to report_formatter.py)
 # ---------------------------------------------------------------------------
 
 _SEPARATOR = "=" * 72
 _THIN_SEP = "-" * 72
-_INDENT = "  "
-
-
-
-# Score bar: visual representation of points earned
-def _score_bar(earned: int, possible: int, width: int = 20) -> str:
-    """Returns a simple ASCII progress bar."""
-    filled = int(round(earned / possible * width)) if possible > 0 else 0
-    bar = "█" * filled + "░" * (width - filled)
-    return f"[{bar}] {earned}/{possible}"
-
-
-def _wrap(text: str, width: int = 68, indent: str = _INDENT) -> str:
-    """Wraps and indents text for console output."""
-    return textwrap.fill(text, width=width, initial_indent=indent, subsequent_indent=indent)
-
-
-def _preview_one_line(text: str, max_len: int) -> str:
-    """Compresses whitespace for a single-line question preview in reports."""
-    s = " ".join(text.split())
-    if len(s) > max_len:
-        return s[:max_len] + "..."
-    return s
-
-
-def format_grade_report(
-    result: GradeResult,
-    entry_index: int,
-    question_label: Optional[str] = None,
-) -> str:
-    """
-    Formats a GradeResult into a human-readable report string.
-    question_label is shown when the source file used Question1 / Question2 / ... lines.
-    """
-    lines = []
-    lines.append("")
-    lines.append(_SEPARATOR)
-    label_part = f"  |  {question_label}" if question_label else ""
-    lines.append(f"  ESSAY #{entry_index}{label_part}  |  TYPE: {result.category}")
-    lines.append(_SEPARATOR)
-
-    # Question preview (single line; newlines would break summary tables)
-    q_preview = _preview_one_line(result.question, 120)
-    lines.append(f"  QUESTION: {q_preview}")
-    lines.append("")
-
-    # ── 1. Score Breakdown ──────────────────────────────────────────────────
-    lines.append("  ┌─────────────────────────────────────────────────┐")
-    lines.append("  │             1. SCORE BREAKDOWN                  │")
-    lines.append("  └─────────────────────────────────────────────────┘")
-    lines.append("")
-    lines.append(f"  TOTAL: {_score_bar(result.total_earned, result.total_possible)}")
-    lines.append("")
-    lines.append(f"  {'Criterion':<44} {'Earned':>6}  {'Max':>4}")
-    lines.append(f"  {'-'*44} {'-'*6}  {'-'*4}")
-
-    for cr in result.criteria_results:
-        status = "✔" if cr.points_earned > 0 else "✘"
-        lines.append(f"  {status} {cr.name:<43} {cr.points_earned:>6}  {cr.max_points:>4}")
-
-    lines.append("")
-
-    # ── 2. Evidence That Earned Each Point ──────────────────────────────────
-    lines.append("  ┌─────────────────────────────────────────────────┐")
-    lines.append("  │        2. EVIDENCE THAT EARNED EACH POINT       │")
-    lines.append("  └─────────────────────────────────────────────────┘")
-    lines.append("")
-    for cr in result.criteria_results:
-        if cr.points_earned > 0:
-            lines.append(f"  ✔ {cr.name} ({cr.points_earned}/{cr.max_points} pt{'s' if cr.max_points > 1 else ''})")
-            lines.append(_wrap(f'"{cr.evidence}"'))
-            lines.append("")
-
-    if not any(cr.points_earned > 0 for cr in result.criteria_results):
-        lines.append(_wrap("No points were earned."))
-        lines.append("")
-
-    # ── 3. Points Not Earned & Why ──────────────────────────────────────────
-    lines.append("  ┌─────────────────────────────────────────────────┐")
-    lines.append("  │       3. POINTS NOT EARNED AND WHY              │")
-    lines.append("  └─────────────────────────────────────────────────┘")
-    lines.append("")
-    missed = [cr for cr in result.criteria_results if cr.points_earned < cr.max_points]
-    if missed:
-        for cr in missed:
-            missing = cr.max_points - cr.points_earned
-            lines.append(f"  ✘ {cr.name} (missed {missing} of {cr.max_points} pt{'s' if cr.max_points > 1 else ''})")
-            if cr.not_earned_reason:
-                lines.append(_wrap(cr.not_earned_reason))
-            lines.append("")
-    else:
-        lines.append(_wrap("All points were earned — excellent work!"))
-        lines.append("")
-
-    # ── 4. Suggestions to Improve ───────────────────────────────────────────
-    lines.append("  ┌─────────────────────────────────────────────────┐")
-    lines.append("  │         4. SUGGESTIONS TO IMPROVE               │")
-    lines.append("  └─────────────────────────────────────────────────┘")
-    lines.append("")
-    for cr in result.criteria_results:
-        if cr.suggestion:
-            lines.append(f"  • [{cr.name}]")
-            lines.append(_wrap(cr.suggestion))
-            lines.append("")
-
-    if result.overall_suggestions:
-        lines.append("  ── Overall Feedback ──")
-        lines.append(_wrap(result.overall_suggestions))
-        lines.append("")
-
-    lines.append(_SEPARATOR)
-    return "\n".join(lines)
 
 
 def print_summary(

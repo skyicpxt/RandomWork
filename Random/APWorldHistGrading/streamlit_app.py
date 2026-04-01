@@ -12,7 +12,6 @@ import base64
 import io
 import os
 import re
-import textwrap
 from pathlib import Path
 from typing import Optional
 
@@ -20,13 +19,14 @@ import streamlit as st
 from dotenv import load_dotenv
 from openai import OpenAI
 
-from grader import GradeResult, grade_essay
+from grader import GradeResult, grade_essay, revise_answer
 from qa_parser import (
     QAFormatError as _QAFormatError,
     _QUESTION_MARKER_RE,
     _normalize_saq_subpart_labels,
     parse_qa_text as _parse_qa_entries,
 )
+from report_formatter import format_grade_report
 
 
 # ---------------------------------------------------------------------------
@@ -351,114 +351,8 @@ def extract_dbq_docs_text(
 
 
 # ---------------------------------------------------------------------------
-# Report formatting  (mirrors grading_report.txt style)
+# Report formatting  (delegated to report_formatter.py, shared with main.py)
 # ---------------------------------------------------------------------------
-
-_BAR_WIDTH = 20
-
-
-def _score_bar(earned: int, possible: int) -> str:
-    """Returns a filled/empty block bar string representing score fraction."""
-    if possible == 0:
-        return ""
-    filled = round((earned / possible) * _BAR_WIDTH)
-    empty = _BAR_WIDTH - filled
-    return f"[{'█' * filled}{'░' * empty}]"
-
-
-def _wrap(text: str, width: int = 58, indent: str = "  ") -> str:
-    """Wraps text at width, indenting all lines."""
-    return textwrap.fill(text, width=width, initial_indent=indent, subsequent_indent=indent)
-
-
-def format_report_txt(result: GradeResult) -> str:
-    """
-    Formats a GradeResult as a plain-text report matching the style of grading_report.txt.
-    Returns the full report string suitable for file download.
-    """
-    lines: list[str] = []
-    sep = "=" * 72
-
-    lines.append(sep)
-    lines.append("  AP WORLD HISTORY: MODERN — GRADING REPORT")
-    lines.append(f"  Essay Type: {result.category}")
-    lines.append(sep)
-    lines.append("")
-
-    q_preview = " ".join(result.question.split())
-    if len(q_preview) > 200:
-        q_preview = q_preview[:200] + "..."
-    lines.append(f"  QUESTION: {q_preview}")
-    lines.append("")
-
-    # ── Section 1: Score Breakdown ──
-    lines.append("  ┌─────────────────────────────────────────────────┐")
-    lines.append("  │             1. SCORE BREAKDOWN                  │")
-    lines.append("  └─────────────────────────────────────────────────┘")
-    lines.append("")
-    bar = _score_bar(result.total_earned, result.total_possible)
-    lines.append(f"  TOTAL: {bar} {result.total_earned}/{result.total_possible}")
-    lines.append("")
-    lines.append(f"  {'Criterion':<54} {'Earned':>6}  {'Max':>4}")
-    lines.append(f"  {'-'*54} {'------':>6}  {'----':>4}")
-    for cr in result.criteria_results:
-        check = "✔" if cr.points_earned > 0 else "✘"
-        lines.append(f"  {check} {cr.name:<53} {cr.points_earned:>6}  {cr.max_points:>4}")
-    lines.append("")
-
-    # ── Section 2: Evidence ──
-    lines.append("  ┌─────────────────────────────────────────────────┐")
-    lines.append("  │        2. EVIDENCE THAT EARNED EACH POINT       │")
-    lines.append("  └─────────────────────────────────────────────────┘")
-    lines.append("")
-    earned_criteria = [cr for cr in result.criteria_results if cr.points_earned > 0]
-    if earned_criteria:
-        for cr in earned_criteria:
-            lines.append(f"  ✔ {cr.name} ({cr.points_earned}/{cr.max_points} pt{'s' if cr.max_points != 1 else ''})")
-            if cr.evidence and cr.evidence != "N/A":
-                lines.append(_wrap(f'"{cr.evidence}"'))
-            if cr.evidence_comment and cr.evidence_comment != "N/A":
-                lines.append(_wrap(f"↳ {cr.evidence_comment}"))
-            lines.append("")
-    else:
-        lines.append("  No points were earned.")
-        lines.append("")
-
-    # ── Section 3: Points Not Earned ──
-    lines.append("  ┌─────────────────────────────────────────────────┐")
-    lines.append("  │       3. POINTS NOT EARNED AND WHY              │")
-    lines.append("  └─────────────────────────────────────────────────┘")
-    lines.append("")
-    missed = [cr for cr in result.criteria_results if cr.points_earned < cr.max_points]
-    if missed:
-        for cr in missed:
-            missed_pts = cr.max_points - cr.points_earned
-            lines.append(f"  ✘ {cr.name} (missed {missed_pts} of {cr.max_points} pt{'s' if cr.max_points != 1 else ''})")
-            if cr.not_earned_reason:
-                lines.append(_wrap(cr.not_earned_reason))
-            lines.append("")
-    else:
-        lines.append("  All points were earned — excellent work!")
-        lines.append("")
-
-    # ── Section 4: Suggestions ──
-    lines.append("  ┌─────────────────────────────────────────────────┐")
-    lines.append("  │         4. SUGGESTIONS TO IMPROVE               │")
-    lines.append("  └─────────────────────────────────────────────────┘")
-    lines.append("")
-    for cr in result.criteria_results:
-        if cr.suggestion:
-            lines.append(f"  • [{cr.name}]")
-            lines.append(_wrap(cr.suggestion))
-            lines.append("")
-
-    if result.overall_suggestions:
-        lines.append("  ── Overall Feedback ──")
-        lines.append(_wrap(result.overall_suggestions))
-        lines.append("")
-
-    lines.append(sep)
-    return "\n".join(lines)
 
 
 # ---------------------------------------------------------------------------
@@ -593,19 +487,196 @@ def _grade_single_entry(
 
 
 def _render_download_buttons(report_txt: str, filename: str) -> None:
-    """Renders the download + copy-text buttons for a report."""
-    col_dl, col_copy = st.columns(2)
-    with col_dl:
-        st.download_button(
-            label="Download Report (.txt)",
-            data=report_txt.encode("utf-8"),
-            file_name=filename,
-            mime="text/plain",
-            use_container_width=True,
+    """Renders the copy-text expander for a report."""
+    with st.expander("Copy Report Text", expanded=False):
+        st.code(report_txt, language=None)
+
+
+# ---------------------------------------------------------------------------
+# Revision helpers
+# ---------------------------------------------------------------------------
+
+def _extract_saq_parts(merged_text: str, label_key: str = "Q") -> list[tuple[str, str]]:
+    """
+    Extracts [(part_letter, text)] from a merged SAQ string such as:
+    'Part A\\nQ: [text]\\n\\nPart B\\nQ: [text]\\n\\nPart C\\nQ: [text]'
+    label_key is "Q" for questions or "A" for original answers.
+    """
+    parts: list[tuple[str, str]] = []
+    for chunk in merged_text.split("\n\n"):
+        lines = [ln for ln in chunk.strip().splitlines() if ln.strip()]
+        if not lines:
+            continue
+        first = lines[0].strip()
+        if not first.upper().startswith("PART"):
+            continue
+        letter = first.split()[-1].lower()
+        rest = "\n".join(lines[1:]).strip()
+        # Strip optional "Q:" / "A:" prefix
+        if rest.upper().startswith(f"{label_key.upper()}:"):
+            rest = rest[len(label_key) + 1:].strip()
+        parts.append((letter, rest))
+    return parts
+
+
+def _parse_revised_saq(revised: str) -> list[tuple[str, str]]:
+    """
+    Parses the model's revised SAQ output (expected format: '(a)\\n[text]\\n\\n(b)\\n[text]...')
+    into [(letter, answer_text)]. Falls back to [('', full_text)] if no markers found.
+    """
+    subpart_re = re.compile(r"^\s*\(\s*([a-zA-Z])\s*\)\s*$", re.MULTILINE)
+    chunks = subpart_re.split(revised)
+    result: list[tuple[str, str]] = []
+    if len(chunks) >= 3:
+        i = 1
+        while i + 1 < len(chunks):
+            letter = chunks[i].strip().lower()
+            text = chunks[i + 1].strip()
+            if letter and text:
+                result.append((letter, text))
+            i += 2
+    if not result:
+        # Model didn't follow (a)/(b)/(c) structure — return the whole text as one block
+        result = [("", revised.strip())]
+    return result
+
+
+def _build_revised_output(
+    cat: str,
+    question: str,
+    revised: str,
+    question_label: str = "",
+) -> str:
+    """
+    Constructs the copyable revised-output text block in input format
+    but with 'RA:' in place of 'A:'.
+    """
+    lines: list[str] = []
+    if question_label:
+        lines.append(question_label)
+    if cat == "SAQ":
+        q_parts = _extract_saq_parts(question, "Q")
+        ra_parsed = _parse_revised_saq(revised)
+        ra_dict = {letter: text for letter, text in ra_parsed if letter}
+        fallback_ra = ra_parsed[0][1] if ra_parsed else revised
+        if q_parts:
+            for letter, q_text in q_parts:
+                lines.append(f"({letter})")
+                lines.append(f"Q: {q_text}")
+                ra_text = ra_dict.get(letter, fallback_ra)
+                lines.append(f"RA: {ra_text}")
+                lines.append("")
+        else:
+            # Fallback: question not in merged Part A/B/C format.
+            lines.append(f"Q: {question.strip()}")
+            lines.append(f"RA: {revised.strip()}")
+    else:
+        lines.append(f"Q: {question.strip()}")
+        lines.append(f"RA: {revised.strip()}")
+    return "\n".join(lines).strip()
+
+
+def _render_revised_question(cat: str, question: str, revised: str) -> None:
+    """
+    Renders one revised Q/RA pair in Streamlit.
+    Both Q: and RA: are shown together in the same block so the question is
+    always visible alongside the generated revision. SAQ is rendered part-by-part.
+    """
+    if cat == "SAQ":
+        q_parts = _extract_saq_parts(question, "Q")
+        ra_parsed = _parse_revised_saq(revised)
+        ra_dict = {letter: text for letter, text in ra_parsed if letter}
+        fallback_ra = ra_parsed[0][1] if ra_parsed else revised
+        if q_parts:
+            for letter, q_text in q_parts:
+                ra_text = ra_dict.get(letter, fallback_ra)
+                st.success(f"**Part {letter.upper()} — Q:** {q_text}\n\n**RA:** {ra_text}")
+        else:
+            # Fallback: question not in merged Part A/B/C format — show as a single block.
+            st.success(f"**Q:** {question.strip()}\n\n**RA:** {revised.strip()}")
+    else:
+        st.success(f"**Q:** {question.strip()}\n\n**RA:** {revised.strip()}")
+
+
+def _revise_and_render(
+    client: OpenAI,
+    essay_type: str,
+    raw_qa: str,
+    dbq_docs_text: Optional[str],
+    model: str,
+) -> None:
+    """
+    Parses raw_qa, calls revise_answer for each Q/A pair, displays the
+    revised answers, and provides a copyable output block.
+    """
+    if _has_multi_question_markers(raw_qa):
+        # ── Multi-question path ──
+        try:
+            entries = _parse_qa_entries(raw_qa, default_category=essay_type)
+        except _QAFormatError as e:
+            st.error(str(e))
+            return
+        if not entries:
+            st.error("No questions found in the input. Check the format guide.")
+            return
+
+        st.info(f"Detected **{len(entries)} question(s)** — revising each separately…")
+        output_blocks: list[str] = []
+        all_ok = True
+
+        for i, entry in enumerate(entries, 1):
+            cat = entry["category"]
+            q = entry["question"]
+            a = entry["answer"]
+            docs = entry.get("docs") or dbq_docs_text or None
+            label = entry.get("question_label") or f"Question{i}"
+
+            st.markdown("---")
+            st.subheader(f"Question {i} — {label}")
+
+            with st.spinner(f"Revising {cat} {label} with {model}…"):
+                try:
+                    revised = revise_answer(client, cat, q, a, model, docs)
+                except Exception as e:
+                    st.error(f"Revision failed for {label}: {e}")
+                    all_ok = False
+                    continue
+
+            _render_revised_question(cat, q, revised)
+            output_blocks.append(_build_revised_output(cat, q, revised, label))
+
+        if output_blocks:
+            full_output = f"CATEGORY: {essay_type}\n\n" + "\n\n".join(output_blocks)
+            st.divider()
+            st.subheader("Full Revised Output")
+            with st.expander("Copy Revised Text", expanded=True):
+                st.code(full_output, language=None)
+
+    else:
+        # ── Single-question path ──
+        try:
+            question, answer, docs_from_text = _parse_single_qa_text(raw_qa, essay_type)
+        except ValueError as e:
+            st.error(str(e))
+            return
+
+        effective_docs = dbq_docs_text or docs_from_text or None
+
+        with st.spinner(f"Revising {essay_type} with {model}…"):
+            try:
+                revised = revise_answer(client, essay_type, question, answer, model, effective_docs)
+            except Exception as e:
+                st.error(f"Revision failed: {e}")
+                return
+
+        _render_revised_question(essay_type, question, revised)
+        full_output = f"CATEGORY: {essay_type}\n\n" + _build_revised_output(
+            essay_type, question, revised
         )
-    with col_copy:
-        with st.expander("Copy Report Text", expanded=False):
-            st.code(report_txt, language=None)
+        st.divider()
+        st.subheader("Full Revised Output")
+        with st.expander("Copy Revised Text", expanded=True):
+            st.code(full_output, language=None)
 
 
 def _grade_and_render_single(
@@ -627,7 +698,7 @@ def _grade_and_render_single(
     if result is None:
         return
 
-    report_txt = format_report_txt(result)
+    report_txt = format_grade_report(result)
     _render_download_buttons(report_txt, f"grading_report_{essay_type}.txt")
 
 
@@ -662,7 +733,7 @@ def _grade_and_render_multi(
         docs = entry.get("docs") or dbq_docs_text or None
         result = _grade_single_entry(client, cat, q, a, docs, model)
         if result:
-            _render_download_buttons(format_report_txt(result), f"grading_report_{cat}.txt")
+            _render_download_buttons(format_grade_report(result), f"grading_report_{cat}.txt")
         return
 
     # Multiple questions — grade each and show results with a per-question header
@@ -684,7 +755,7 @@ def _grade_and_render_multi(
             continue
 
         graded.append((i, label, result))
-        all_reports.append(format_report_txt(result))
+        all_reports.append(format_grade_report(result))
 
     if not graded:
         return
@@ -866,22 +937,26 @@ def main() -> None:
                 except Exception as e:
                     st.error(f"Could not extract document text: {e}")
 
-    # ── Grade button ──
+    # ── Action buttons ──
     st.divider()
-    grade_button = st.button("Grade Essay", type="primary", use_container_width=True)
+    _btn_col_grade, _btn_col_revise = st.columns(2)
+    grade_button = _btn_col_grade.button("Grade Essay", type="primary", use_container_width=True)
+    revise_button = _btn_col_revise.button("✏️ Revise Answer", use_container_width=True)
 
     # ── Mismatch confirmation UI ──
-    # Shown in place of grading when a mismatch was detected on the previous run.
-    # The user must explicitly choose to continue or cancel before grading proceeds.
+    # Shown in place of grading/revision when a mismatch was detected on the previous run.
+    # The user must explicitly choose to continue or cancel before the action proceeds.
     _pending = st.session_state["_mismatch_pending"]
     if _pending is not None:
         st.divider()
         st.subheader("Essay Type Mismatch Detected")
         for w in _pending["warnings"]:
             st.warning(w)
-        st.markdown("Would you like to continue grading with the selected essay type anyway?")
+        _pending_action = _pending.get("action", "grade")
+        _action_label = "Revise" if _pending_action == "revise" else "Grade"
+        st.markdown(f"Would you like to continue {_action_label.lower()}ing with the selected essay type anyway?")
         col_yes, col_no = st.columns(2)
-        _proceed = col_yes.button("Continue Anyway", type="primary", use_container_width=True)
+        _proceed = col_yes.button(f"Continue — {_action_label} Anyway", type="primary", use_container_width=True)
         _cancel = col_no.button("Cancel — Go Back", use_container_width=True)
 
         if _cancel:
@@ -891,13 +966,18 @@ def main() -> None:
         if _proceed:
             _p = st.session_state["_mismatch_pending"]
             st.session_state["_mismatch_pending"] = None
-            _grade_and_render(
-                client, _p["essay_type"], _p["raw_qa"], _p["dbq_docs_text"], _p["model"]
-            )
+            if _p.get("action") == "revise":
+                _revise_and_render(
+                    client, _p["essay_type"], _p["raw_qa"], _p["dbq_docs_text"], _p["model"]
+                )
+            else:
+                _grade_and_render(
+                    client, _p["essay_type"], _p["raw_qa"], _p["dbq_docs_text"], _p["model"]
+                )
 
-    elif grade_button:
+    elif grade_button or revise_button:
         if not raw_qa:
-            st.error("Please enter or upload the Q&A text before grading.")
+            st.error("Please enter or upload the Q&A text before proceeding.")
             st.stop()
 
         # Multi-question format bypasses mismatch detection — the user has
@@ -947,6 +1027,7 @@ def main() -> None:
                     "If this is a DBQ, please cancel and change the essay type above."
                 )
 
+        _current_action = "revise" if revise_button else "grade"
         if _warnings:
             # Save params and rerun to show the blocking confirmation UI.
             st.session_state["_mismatch_pending"] = {
@@ -955,8 +1036,11 @@ def main() -> None:
                 "raw_qa": raw_qa,
                 "dbq_docs_text": dbq_docs_text,
                 "model": model,
+                "action": _current_action,
             }
             st.rerun()
+        elif _current_action == "revise":
+            _revise_and_render(client, essay_type, raw_qa, dbq_docs_text, model)
         else:
             _grade_and_render(client, essay_type, raw_qa, dbq_docs_text, model)
 

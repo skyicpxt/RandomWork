@@ -14,17 +14,27 @@ _PKG_DIR = Path(__file__).resolve().parent
 if str(_PKG_DIR) not in sys.path:
     sys.path.insert(0, str(_PKG_DIR))
 
+# Always import testing utilities so they're available in all test classes.
+from unittest.mock import MagicMock, patch
+
 # grader.py imports openai at import time; stub so unit tests run without openai installed.
 if "openai" not in sys.modules:
-    from unittest.mock import MagicMock
-
     _openai_mod = MagicMock()
     _openai_mod.OpenAI = MagicMock
     sys.modules["openai"] = _openai_mod
 
-from grader import CriterionResult, GradeResult
+from grader import CriterionResult, GradeResult, revise_answer
 
 import main as ap_main
+
+# streamlit_app imports streamlit/dotenv at module level; stub both so the module can be
+# imported in headless test environments without a running Streamlit server.
+if "streamlit" not in sys.modules:
+    sys.modules["streamlit"] = MagicMock()
+if "dotenv" not in sys.modules:
+    sys.modules["dotenv"] = MagicMock()
+
+from streamlit_app import _build_revised_output, _extract_saq_parts, _parse_revised_saq
 
 
 def _write_qa_file(content: str) -> Path:
@@ -444,6 +454,267 @@ class TestSampleFilesIfPresent(unittest.TestCase):
             for e in entries:
                 self.assertNotEqual(e["question"].strip(), "")
                 self.assertNotEqual(e["answer"].strip(), "")
+
+
+class TestReviseAnswer(unittest.TestCase):
+    """revise_answer() builds the right prompt and returns the model's response."""
+
+    def _make_client(self, content: str = "Revised answer.") -> MagicMock:
+        """Returns a mock OpenAI client whose completions endpoint returns content."""
+        client = MagicMock()
+        choice = MagicMock()
+        choice.message.content = content
+        client.chat.completions.create.return_value = MagicMock(choices=[choice])
+        return client
+
+    def _user_message(self, client: MagicMock) -> str:
+        """Extract the user-role message from the last API call."""
+        messages = client.chat.completions.create.call_args.kwargs["messages"]
+        return next((m["content"] for m in messages if m["role"] == "user"), "")
+
+    def _system_message(self, client: MagicMock) -> str:
+        """Extract the system-role message from the last API call."""
+        messages = client.chat.completions.create.call_args.kwargs["messages"]
+        return next(
+            (m["content"] for m in messages if m["role"] in ("system", "developer")), ""
+        )
+
+    def test_returns_model_content(self) -> None:
+        """Return value is exactly the text from the API response."""
+        client = self._make_client("Excellent revised essay.")
+        result = revise_answer(client, "LEQ", "What caused X?", "My draft.", "gpt-test")
+        self.assertEqual(result, "Excellent revised essay.")
+
+    def test_raises_value_error_on_empty_response(self) -> None:
+        """An empty API response triggers a descriptive ValueError."""
+        client = self._make_client("")
+        with self.assertRaises(ValueError):
+            revise_answer(client, "SAQ", "Q?", "A.", "gpt-test")
+
+    def test_prompt_contains_question(self) -> None:
+        """The question text is embedded in the user prompt."""
+        client = self._make_client("ok")
+        revise_answer(client, "LEQ", "Unique Question SENTINEL", "My answer.", "gpt-test")
+        self.assertIn("Unique Question SENTINEL", self._user_message(client))
+
+    def test_prompt_contains_original_answer(self) -> None:
+        """The student's original answer is embedded in the user prompt."""
+        client = self._make_client("ok")
+        revise_answer(client, "LEQ", "Q?", "Unique Answer SENTINEL", "gpt-test")
+        self.assertIn("Unique Answer SENTINEL", self._user_message(client))
+
+    def test_prompt_contains_category(self) -> None:
+        """The essay type label appears in the user prompt."""
+        client = self._make_client("ok")
+        revise_answer(client, "SAQ", "Q?", "A.", "gpt-test")
+        self.assertIn("SAQ", self._user_message(client))
+
+    def test_system_message_is_revision_role(self) -> None:
+        """System prompt describes a tutor/revision role, not a grading role."""
+        client = self._make_client("ok")
+        revise_answer(client, "SAQ", "Q?", "A.", "gpt-test")
+        sys_msg = self._system_message(client)
+        self.assertIn("tutor", sys_msg.lower())
+
+    def test_dbq_docs_included_when_provided(self) -> None:
+        """DBQ source documents are passed through to the prompt."""
+        client = self._make_client("ok")
+        revise_answer(client, "DBQ", "Q?", "A.", "gpt-test", dbq_docs="DOCUMENT 1 text here")
+        self.assertIn("DOCUMENT 1 text here", self._user_message(client))
+
+    def test_dbq_docs_absent_when_none(self) -> None:
+        """When dbq_docs is None no SOURCE DOCUMENTS block appears."""
+        client = self._make_client("ok")
+        revise_answer(client, "LEQ", "Q?", "A.", "gpt-test", dbq_docs=None)
+        self.assertNotIn("SOURCE DOCUMENTS", self._user_message(client))
+
+    def test_all_three_categories_accepted(self) -> None:
+        """revise_answer works for DBQ, LEQ, and SAQ without raising."""
+        for cat in ("DBQ", "LEQ", "SAQ"):
+            client = self._make_client("ok")
+            result = revise_answer(client, cat, "Q?", "A.", "gpt-test")
+            self.assertEqual(result, "ok", f"Failed for category {cat}")
+
+
+class TestExtractSaqParts(unittest.TestCase):
+    """_extract_saq_parts splits a merged SAQ question/answer string into per-part tuples."""
+
+    def test_three_parts_question(self) -> None:
+        merged = "Part A\nQ: First stem?\n\nPart B\nQ: Second stem?\n\nPart C\nQ: Third stem?"
+        parts = _extract_saq_parts(merged, "Q")
+        self.assertEqual(len(parts), 3)
+        self.assertEqual(parts[0], ("a", "First stem?"))
+        self.assertEqual(parts[1], ("b", "Second stem?"))
+        self.assertEqual(parts[2], ("c", "Third stem?"))
+
+    def test_two_parts_only(self) -> None:
+        merged = "Part A\nQ: Alpha?\n\nPart B\nQ: Beta?"
+        parts = _extract_saq_parts(merged, "Q")
+        self.assertEqual(len(parts), 2)
+        self.assertEqual(parts[0][0], "a")
+        self.assertEqual(parts[1][0], "b")
+
+    def test_answer_label_key(self) -> None:
+        """label_key='A' strips 'A:' prefix from each chunk."""
+        merged = "Part A\nA: Answer one.\n\nPart B\nA: Answer two."
+        parts = _extract_saq_parts(merged, "A")
+        self.assertEqual(parts[0], ("a", "Answer one."))
+        self.assertEqual(parts[1], ("b", "Answer two."))
+
+    def test_empty_string_returns_empty(self) -> None:
+        self.assertEqual(_extract_saq_parts("", "Q"), [])
+
+    def test_skips_chunks_without_part_header(self) -> None:
+        """Chunks that don't start with 'Part' are ignored."""
+        merged = "Preamble text\n\nPart A\nQ: Real question?"
+        parts = _extract_saq_parts(merged, "Q")
+        self.assertEqual(len(parts), 1)
+        self.assertEqual(parts[0][0], "a")
+
+
+class TestParseRevisedSaq(unittest.TestCase):
+    """_parse_revised_saq splits the model's (a)/(b)/(c) response into per-part tuples."""
+
+    def test_standard_three_parts(self) -> None:
+        revised = "(a)\nRevised part A.\n\n(b)\nRevised part B.\n\n(c)\nRevised part C."
+        parts = _parse_revised_saq(revised)
+        self.assertEqual(len(parts), 3)
+        self.assertEqual(parts[0], ("a", "Revised part A."))
+        self.assertEqual(parts[1], ("b", "Revised part B."))
+        self.assertEqual(parts[2], ("c", "Revised part C."))
+
+    def test_two_parts(self) -> None:
+        revised = "(a)\nAnswer A.\n\n(b)\nAnswer B."
+        parts = _parse_revised_saq(revised)
+        self.assertEqual(len(parts), 2)
+
+    def test_fallback_when_no_markers(self) -> None:
+        """Text with no (a)/(b)/(c) markers returns a single tuple with empty letter."""
+        revised = "This is a complete revised answer with no sub-part markers."
+        parts = _parse_revised_saq(revised)
+        self.assertEqual(len(parts), 1)
+        self.assertEqual(parts[0][0], "")
+        self.assertIn("complete revised answer", parts[0][1])
+
+    def test_whitespace_around_markers(self) -> None:
+        """Extra spaces/blank lines around markers are tolerated."""
+        revised = "  (a)  \nAnswer A.\n\n  (b)  \nAnswer B."
+        parts = _parse_revised_saq(revised)
+        self.assertEqual(len(parts), 2)
+        self.assertEqual(parts[0][0], "a")
+        self.assertEqual(parts[1][0], "b")
+
+    def test_uppercase_markers_accepted(self) -> None:
+        """(A) / (B) markers (uppercase) are handled the same as lowercase."""
+        revised = "(A)\nUpper A.\n\n(B)\nUpper B."
+        parts = _parse_revised_saq(revised)
+        self.assertEqual(len(parts), 2)
+        self.assertEqual(parts[0][0], "a")
+
+
+class TestBuildRevisedOutput(unittest.TestCase):
+    """_build_revised_output constructs the copyable Q:/RA: text block."""
+
+    def test_leq_format(self) -> None:
+        """LEQ produces a simple 'Q:' then 'RA:' block with no bare 'A:' line."""
+        out = _build_revised_output("LEQ", "Why did X happen?", "Better essay text.")
+        self.assertIn("Q: Why did X happen?", out)
+        self.assertIn("RA: Better essay text.", out)
+        # Ensure no standalone "A:" label (distinct from "RA:" which contains "A:")
+        self.assertNotIn("\nA:", out)
+        self.assertFalse(out.startswith("A:"))
+
+    def test_dbq_format(self) -> None:
+        """DBQ produces the same simple two-line block."""
+        out = _build_revised_output("DBQ", "Analyze trade.", "Revised DBQ essay.")
+        self.assertIn("Q: Analyze trade.", out)
+        self.assertIn("RA: Revised DBQ essay.", out)
+
+    def test_saq_reconstructs_per_part(self) -> None:
+        """SAQ output has (a)/(b)/(c) headers with Q: and RA: for each part."""
+        question = "Part A\nQ: Stem A?\n\nPart B\nQ: Stem B?\n\nPart C\nQ: Stem C?"
+        revised = "(a)\nRA text A.\n\n(b)\nRA text B.\n\n(c)\nRA text C."
+        out = _build_revised_output("SAQ", question, revised)
+        self.assertIn("(a)", out)
+        self.assertIn("Q: Stem A?", out)
+        self.assertIn("RA: RA text A.", out)
+        self.assertIn("(b)", out)
+        self.assertIn("Q: Stem B?", out)
+        self.assertIn("RA: RA text B.", out)
+        self.assertIn("(c)", out)
+        # No bare "A:" label — only "RA:" should appear
+        self.assertNotIn("\nA:", out)
+        self.assertFalse(out.startswith("A:"))
+
+    def test_question_label_prepended(self) -> None:
+        """When question_label is provided it appears as the first line."""
+        out = _build_revised_output("LEQ", "Q?", "Revised.", question_label="Question 2")
+        self.assertTrue(out.startswith("Question 2"))
+
+    def test_no_label_no_extra_header(self) -> None:
+        """When question_label is empty no extra blank header line is added."""
+        out = _build_revised_output("LEQ", "Q?", "Revised.")
+        self.assertFalse(out.startswith("\n"))
+
+    def test_saq_fallback_ra_when_model_returns_no_markers(self) -> None:
+        """If the model returns plain text without (a)/(b)/(c), each part still gets RA:."""
+        question = "Part A\nQ: Stem A?\n\nPart B\nQ: Stem B?"
+        revised = "Plain revised answer with no part markers."
+        out = _build_revised_output("SAQ", question, revised)
+        # Both parts should still have a RA: line
+        self.assertEqual(out.count("RA:"), 2)
+        self.assertIn("Plain revised answer", out)
+
+    def test_saq_fallback_when_question_not_merged(self) -> None:
+        """SAQ with a plain (non-merged) question still produces Q: and RA: lines."""
+        # question without 'Part A/B/C' header — _extract_saq_parts returns []
+        question = "What caused the decline of the Mongol Empire?"
+        revised = "A full revised answer."
+        out = _build_revised_output("SAQ", question, revised)
+        self.assertIn("Q: What caused the decline of the Mongol Empire?", out)
+        self.assertIn("RA: A full revised answer.", out)
+
+    def test_output_mirrors_input_structure_replacing_only_answer_label(self) -> None:
+        """
+        End-to-end format check: the copyable output is structurally identical to the
+        input except 'A:' is replaced by 'RA:'. Verifies CATEGORY line, question label,
+        sub-part markers, and Q: lines are all preserved unchanged.
+        """
+        # Simulate what _revise_and_render assembles for a 2-question SAQ:
+        #   entry 1: Question 1: with (a) and (b)
+        #   entry 2: Question 2: with (a) only
+        q1 = "Part A\nQ: First part question?\n\nPart B\nQ: Second part question?"
+        ra1 = "(a)\nRevised answer A.\n\n(b)\nRevised answer B."
+        block1 = _build_revised_output("SAQ", q1, ra1, "Question 1:")
+
+        q2 = "Part A\nQ: Single-part question?"
+        ra2 = "(a)\nRevised single answer."
+        block2 = _build_revised_output("SAQ", q2, ra2, "Question 2:")
+
+        full = "CATEGORY: SAQ\n\n" + "\n\n".join([block1, block2])
+
+        # CATEGORY header is present
+        self.assertTrue(full.startswith("CATEGORY: SAQ"))
+
+        # Question labels are preserved
+        self.assertIn("Question 1:", full)
+        self.assertIn("Question 2:", full)
+
+        # Sub-part markers are preserved
+        self.assertIn("(a)", full)
+        self.assertIn("(b)", full)
+
+        # Q: lines are present (original question text unchanged)
+        self.assertIn("Q: First part question?", full)
+        self.assertIn("Q: Second part question?", full)
+        self.assertIn("Q: Single-part question?", full)
+
+        # RA: replaces A: — no bare A: on its own line
+        self.assertIn("RA: Revised answer A.", full)
+        self.assertIn("RA: Revised answer B.", full)
+        self.assertIn("RA: Revised single answer.", full)
+        self.assertNotIn("\nA:", full)
+        self.assertFalse(full.startswith("A:"))
 
 
 if __name__ == "__main__":

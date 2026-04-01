@@ -128,6 +128,91 @@ _DBQ_DOCS_SECTION_TEMPLATE = """SOURCE DOCUMENTS PROVIDED TO THE STUDENT:
 """
 
 
+# ---------------------------------------------------------------------------
+# Answer revision
+# ---------------------------------------------------------------------------
+
+_REVISION_SYSTEM_PROMPT = (
+    "You are an expert AP World History: Modern tutor. "
+    "Rewrite the student's answer so it earns every available point on the official AP rubric. "
+    "Preserve the student's ideas and historical examples where they already satisfy the rubric; "
+    "add or strengthen only what is needed to earn the remaining points. "
+    "Output ONLY the revised answer text — no preamble, labels, or explanation."
+)
+
+_REVISION_INSTRUCTIONS = """\
+ESSAY TYPE: {category}
+
+QUESTION:
+{question}
+
+{dbq_docs_section}STUDENT'S ORIGINAL ANSWER:
+{answer}
+
+OFFICIAL RUBRIC:
+{rubric_text}
+
+---
+Rewrite the student's answer above so it earns EVERY rubric point.
+{format_hint}
+
+Output ONLY the revised answer text — no commentary, no preamble.\
+"""
+
+_REVISION_FORMAT_HINTS: dict[str, str] = {
+    "SAQ": (
+        "Return the revised answer using exactly this structure (one block per sub-part):\n"
+        "(a)\n[revised answer for part a]\n\n"
+        "(b)\n[revised answer for part b]\n\n"
+        "(c)\n[revised answer for part c]"
+    ),
+    "LEQ": (
+        "Write a complete essay with: a clear thesis establishing a line of reasoning, "
+        "body paragraphs each providing specific evidence with reasoning connecting it to the argument, "
+        "and contextualization."
+    ),
+    "DBQ": (
+        "Write a complete essay with: a clear thesis, body paragraphs analyzing documents "
+        "and providing sourcing (purpose/audience/POV/situation) for at least three, "
+        "contextualization, and outside evidence."
+    ),
+}
+
+
+# Produces a revised student answer that earns full marks on the AP rubric.
+def revise_answer(
+    client: OpenAI,
+    category: str,
+    question: str,
+    answer: str,
+    model: str,
+    dbq_docs: Optional[str] = None,
+) -> str:
+    """
+    Calls the OpenAI API to produce a revised version of the student's answer
+    that earns full marks on the official AP rubric.
+    Returns the revised answer as plain text.
+    """
+    rubric, max_score = get_rubric(category)
+    rubric_text = format_rubric_for_prompt(rubric, max_score)
+    dbq_docs_section = ""
+    if dbq_docs and dbq_docs.strip():
+        dbq_docs_section = _DBQ_DOCS_SECTION_TEMPLATE.format(docs=dbq_docs.strip()) + "\n"
+    prompt = _REVISION_INSTRUCTIONS.format(
+        category=category,
+        question=question.strip(),
+        dbq_docs_section=dbq_docs_section,
+        answer=answer.strip(),
+        rubric_text=rubric_text,
+        format_hint=_REVISION_FORMAT_HINTS.get(category, ""),
+    )
+    messages = [
+        {"role": "system", "content": _REVISION_SYSTEM_PROMPT},
+        {"role": "user", "content": prompt},
+    ]
+    return _call_with_retry(client, messages, model)
+
+
 def _build_grading_prompt(
     category: str,
     question: str,
