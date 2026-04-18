@@ -24,6 +24,8 @@ if "openai" not in sys.modules:
     sys.modules["openai"] = _openai_mod
 
 from grader import CriterionResult, GradeResult, revise_answer
+from qa_parser import _normalize_saq_subpart_labels
+from report_formatter import format_summary
 
 import main as ap_main
 
@@ -34,7 +36,7 @@ if "streamlit" not in sys.modules:
 if "dotenv" not in sys.modules:
     sys.modules["dotenv"] = MagicMock()
 
-from streamlit_app import _build_revised_output, _extract_saq_parts, _parse_revised_saq
+from streamlit_app import _build_revised_output, _extract_saq_parts, _parse_revised_saq, _spaced_paragraphs
 
 
 def _write_qa_file(content: str) -> Path:
@@ -292,25 +294,25 @@ class TestNormalizeSaqSubpartLabels(unittest.TestCase):
 
     def test_parenthetical_lowercase(self) -> None:
         raw = "(a) First\n(b) Second\n(c) Third"
-        out = ap_main._normalize_saq_subpart_labels(raw)
+        out = _normalize_saq_subpart_labels(raw)
         self.assertIn("Part A: First", out)
         self.assertIn("Part B: Second", out)
         self.assertIn("Part C: Third", out)
 
     def test_uppercase_letter_close_paren(self) -> None:
         raw = "A) One\nB) Two"
-        out = ap_main._normalize_saq_subpart_labels(raw)
+        out = _normalize_saq_subpart_labels(raw)
         self.assertIn("Part A: One", out)
         self.assertIn("Part B: Two", out)
 
     def test_preserves_indent(self) -> None:
         raw = "  (a) Indented"
-        out = ap_main._normalize_saq_subpart_labels(raw)
+        out = _normalize_saq_subpart_labels(raw)
         self.assertTrue(out.startswith("  Part A:"))
 
     def test_non_marker_lines_unchanged(self) -> None:
         raw = "Intro line\n(a) Sub\nMore detail without prefix"
-        out = ap_main._normalize_saq_subpart_labels(raw)
+        out = _normalize_saq_subpart_labels(raw)
         self.assertIn("Intro line", out)
         self.assertIn("More detail without prefix", out)
 
@@ -418,10 +420,7 @@ class TestPrintSummaryOutput(unittest.TestCase):
             ],
             "ok",
         )
-        summary = ap_main.print_summary(
-            [r1, r2],
-            question_labels=["Question1", "Question2"],
-        )
+        summary = format_summary([(1, "Question1", r1), (2, "Question2", r2)])
         self.assertIn("GRADING SUMMARY", summary)
         self.assertIn("Label", summary)
         self.assertIn("5/6", summary)  # total earned / total possible
@@ -647,13 +646,15 @@ class TestBuildRevisedOutput(unittest.TestCase):
         self.assertFalse(out.startswith("A:"))
 
     def test_question_label_prepended(self) -> None:
-        """When question_label is provided it appears as the first line."""
+        """When question_label is provided it appears after the 'Revised answer' header."""
         out = _build_revised_output("LEQ", "Q?", "Revised.", question_label="Question 2")
-        self.assertTrue(out.startswith("Question 2"))
+        self.assertTrue(out.startswith("Revised answer"))
+        self.assertIn("Question 2", out)
 
     def test_no_label_no_extra_header(self) -> None:
-        """When question_label is empty no extra blank header line is added."""
+        """Output always starts with 'Revised answer' header and no leading blank line."""
         out = _build_revised_output("LEQ", "Q?", "Revised.")
+        self.assertTrue(out.startswith("Revised answer"))
         self.assertFalse(out.startswith("\n"))
 
     def test_saq_fallback_ra_when_model_returns_no_markers(self) -> None:
@@ -715,6 +716,66 @@ class TestBuildRevisedOutput(unittest.TestCase):
         self.assertIn("RA: Revised single answer.", full)
         self.assertNotIn("\nA:", full)
         self.assertFalse(full.startswith("A:"))
+
+
+class TestSpacedParagraphs(unittest.TestCase):
+    """_spaced_paragraphs ensures visible blank lines between paragraphs in Streamlit markdown."""
+
+    def test_single_paragraph_unchanged_content(self) -> None:
+        """Single-paragraph text has no double-newlines to expand; content is preserved."""
+        out = _spaced_paragraphs("Hello world.")
+        self.assertIn("Hello world.", out)
+
+    def test_double_newline_becomes_four(self) -> None:
+        """A paragraph break (\\n\\n) is doubled to \\n\\n\\n\\n for Streamlit rendering."""
+        out = _spaced_paragraphs("Para one.\n\nPara two.")
+        self.assertIn("Para one.", out)
+        self.assertIn("Para two.", out)
+        self.assertIn("\n\n\n\n", out)
+
+    def test_triple_newline_normalised_then_doubled(self) -> None:
+        """Three or more consecutive newlines are first collapsed to two, then doubled."""
+        out = _spaced_paragraphs("A.\n\n\nB.")
+        self.assertEqual(out.count("\n\n\n\n"), 1)
+        self.assertNotIn("\n\n\n\n\n", out)
+
+    def test_leading_trailing_whitespace_stripped(self) -> None:
+        """Leading and trailing whitespace around the whole text is stripped."""
+        out = _spaced_paragraphs("\n\nHello.\n\n")
+        self.assertFalse(out.startswith("\n"))
+        self.assertFalse(out.endswith("\n"))
+
+    def test_empty_string_returns_empty(self) -> None:
+        """Empty input produces an empty string without raising."""
+        self.assertEqual(_spaced_paragraphs(""), "")
+
+    def test_whitespace_only_returns_empty(self) -> None:
+        """Whitespace-only input is stripped to empty."""
+        self.assertEqual(_spaced_paragraphs("   \n\n  "), "")
+
+
+class TestBuildRevisedOutputHeader(unittest.TestCase):
+    """'Revised answer' must appear as the first line for all essay types."""
+
+    def test_leq_starts_with_revised_answer(self) -> None:
+        out = _build_revised_output("LEQ", "Q?", "Essay text.")
+        self.assertTrue(out.startswith("Revised answer"))
+
+    def test_dbq_starts_with_revised_answer(self) -> None:
+        out = _build_revised_output("DBQ", "Q?", "Essay text.")
+        self.assertTrue(out.startswith("Revised answer"))
+
+    def test_saq_starts_with_revised_answer(self) -> None:
+        out = _build_revised_output("SAQ", "Part A\nQ: Stem?", "(a)\nAnswer.")
+        self.assertTrue(out.startswith("Revised answer"))
+
+    def test_header_present_with_question_label(self) -> None:
+        """'Revised answer' header precedes the question label when one is given."""
+        out = _build_revised_output("LEQ", "Q?", "Essay.", question_label="Question 3")
+        lines = out.splitlines()
+        self.assertEqual(lines[0], "Revised answer")
+        self.assertIn("Question 3", out)
+        self.assertGreater(out.index("Question 3"), out.index("Revised answer"))
 
 
 if __name__ == "__main__":

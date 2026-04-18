@@ -499,6 +499,25 @@ def _parse_block_multi(lines: list[str], block_num: int) -> tuple[list[dict], li
     return entries, []
 
 
+def has_multi_question_markers(text: str) -> bool:
+    """Returns True if the text contains any Question1 / Question2 / … marker lines."""
+    return _block_has_question_markers(text.splitlines())
+
+
+def normalize_entry(entry: dict) -> tuple[str, str]:
+    """
+    Returns (question, answer) from a parsed entry dict.
+    For SAQ entries, applies sub-part label normalization to align
+    (a)/(b)/(c) labels with the rubric's Part A / Part B / Part C names.
+    """
+    q = entry["question"]
+    a = entry["answer"]
+    if entry.get("category") == "SAQ":
+        q = _normalize_saq_subpart_labels(q)
+        a = _normalize_saq_subpart_labels(a)
+    return q, a
+
+
 def parse_qa_file(filepath: Path) -> list[dict]:
     """
     Parses a QandA file and returns a list of entry dicts (one per graded essay).

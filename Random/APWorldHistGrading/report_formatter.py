@@ -31,6 +31,34 @@ def _preview_one_line(text: str, max_len: int = 200) -> str:
     return s[:max_len] + "..." if len(s) > max_len else s
 
 
+def format_summary(graded: list[tuple[int, str, GradeResult]]) -> str:
+    """
+    Formats a GRADING SUMMARY table for a set of graded essays.
+    graded is a list of (entry_index, label, GradeResult) tuples — the same
+    structure used by both main.py and streamlit_app.py after grading each entry.
+    Returns the formatted string for inclusion in a plain-text report.
+    """
+    lines: list[str] = []
+    sep = _SEPARATOR
+    lines.append("")
+    lines.append(sep)
+    lines.append("  GRADING SUMMARY")
+    lines.append(sep)
+    lines.append(f"  {'#':<4} {'Label':<12} {'Type':<6} {'Score':>10}  Question (preview)")
+    lines.append(f"  {'-'*4} {'-'*12} {'-'*6} {'-'*10}  {'-'*30}")
+    total_e = total_p = 0
+    for i, lbl, r in graded:
+        q_preview = _preview_one_line(r.question, 30)
+        score_str = f"{r.total_earned}/{r.total_possible}"
+        lines.append(f"  {i:<4} {lbl[:12]:<12} {r.category:<6} {score_str:>10}  {q_preview}")
+        total_e += r.total_earned
+        total_p += r.total_possible
+    lines.append(f"  {'-'*4} {'-'*12} {'-'*6} {'-'*10}  {'-'*30}")
+    lines.append(f"  {'TOTAL':<36} {total_e}/{total_p}")
+    lines.append(sep)
+    return "\n".join(lines)
+
+
 def format_grade_report(
     result: GradeResult,
     entry_index: Optional[int] = None,

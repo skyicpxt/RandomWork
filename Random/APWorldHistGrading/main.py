@@ -27,13 +27,13 @@ from typing import Optional
 from dotenv import load_dotenv
 from openai import OpenAI
 
-from grader import GradeResult, grade_essay
+from grader import DEFAULT_MODEL, GradeResult, grade_essay
 from qa_parser import (
     QAFormatError,
-    _normalize_saq_subpart_labels,
+    normalize_entry,
     parse_qa_file,
 )
-from report_formatter import format_grade_report, _preview_one_line
+from report_formatter import format_grade_report, format_summary, _preview_one_line
 
 # ---------------------------------------------------------------------------
 # Paths & env
@@ -57,9 +57,6 @@ INPUT_MODE_FILES: dict[str, Path] = {
 # When no --category: grade these three default single-format files.
 DEFAULT_SINGLE_MODES = ("DBQ", "LEQ", "SAQ")
 
-DEFAULT_MODEL = "gpt-5.4"
-
-
 def _rubric_category_for_filter(cli_category: Optional[str]) -> Optional[str]:
     """
     Maps CLI flag (e.g. DBQ_multi) to the essay type inside the file (DBQ) for filtering
@@ -81,42 +78,10 @@ def _rubric_category_for_filter(cli_category: Optional[str]) -> Optional[str]:
 
 
 # ---------------------------------------------------------------------------
-# Output formatting  (report body delegated to report_formatter.py)
+# Output formatting  (delegated to report_formatter.py, shared with streamlit_app.py)
 # ---------------------------------------------------------------------------
 
-_SEPARATOR = "=" * 72
 _THIN_SEP = "-" * 72
-
-
-def print_summary(
-    results: list[GradeResult],
-    question_labels: Optional[list[Optional[str]]] = None,
-) -> str:
-    """
-    Prints and returns a summary table of all graded essays.
-    question_labels[i] matches results[i] when entries came from QuestionN markers.
-    """
-    lines = []
-    lines.append("")
-    lines.append(_SEPARATOR)
-    lines.append("  GRADING SUMMARY")
-    lines.append(_SEPARATOR)
-    lines.append(f"  {'#':<4} {'Type':<6} {'Score':>10}  Label      Question (preview)")
-    lines.append(f"  {'-'*4} {'-'*6} {'-'*10}  {'-'*10}  {'-'*30}")
-    total_e, total_p = 0, 0
-    for i, r in enumerate(results, 1):
-        q_preview = _preview_one_line(r.question, 30)
-        score_str = f"{r.total_earned}/{r.total_possible}"
-        lbl = ""
-        if question_labels and i - 1 < len(question_labels) and question_labels[i - 1]:
-            lbl = (question_labels[i - 1] or "")[:10]
-        lines.append(f"  {i:<4} {r.category:<6} {score_str:>10}  {lbl:<10}  {q_preview}")
-        total_e += r.total_earned
-        total_p += r.total_possible
-    lines.append(f"  {'-'*4} {'-'*6} {'-'*10}  {'-'*10}  {'-'*30}")
-    lines.append(f"  {'TOTAL':<22} {total_e}/{total_p}")
-    lines.append(_SEPARATOR)
-    return "\n".join(lines)
 
 
 # ---------------------------------------------------------------------------
@@ -227,19 +192,14 @@ def main():
 
     # Grade all entries — collect output for the report file
     all_output: list[str] = []
-    results: list[GradeResult] = []
-    summary_labels: list[Optional[str]] = []
+    graded: list[tuple[int, str, GradeResult]] = []
 
     for i, entry in enumerate(entries, 1):
         cat = entry["category"]
-        qlabel = entry.get("question_label") or None
+        qlabel = entry.get("question_label") or ""
         label_hint = f" {qlabel}" if qlabel else ""
         print(f"  [{i}/{len(entries)}] Grading {cat}{label_hint}...", end="", flush=True)
-        question_text = entry["question"]
-        answer_text = entry["answer"]
-        if cat == "SAQ":
-            question_text = _normalize_saq_subpart_labels(question_text)
-            answer_text = _normalize_saq_subpart_labels(answer_text)
+        question_text, answer_text = normalize_entry(entry)
         try:
             result = grade_essay(
                 client=client,
@@ -253,18 +213,17 @@ def main():
             print(f"  ERROR: {e}")
             continue
 
-        results.append(result)
-        summary_labels.append(qlabel)
+        graded.append((i, qlabel, result))
         score_str = f"{result.total_earned}/{result.total_possible}"
         print(f" done  ({score_str} pts)")
-        all_output.append(format_grade_report(result, i, question_label=qlabel))
+        all_output.append(format_grade_report(result, i, question_label=qlabel or None))
 
-    if not results:
+    if not graded:
         print("\nNo results to write.")
         sys.exit(0)
 
     # Append summary to report
-    summary = print_summary(results, question_labels=summary_labels)
+    summary = format_summary(graded)
     all_output.append(summary)
 
     # Write full report to file

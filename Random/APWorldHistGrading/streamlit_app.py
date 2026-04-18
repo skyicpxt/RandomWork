@@ -19,14 +19,14 @@ import streamlit as st
 from dotenv import load_dotenv
 from openai import OpenAI
 
-from grader import GradeResult, grade_essay, revise_answer
+from grader import DEFAULT_MODEL, GradeResult, explain_changes, grade_essay, revise_answer
 from qa_parser import (
     QAFormatError as _QAFormatError,
-    _QUESTION_MARKER_RE,
-    _normalize_saq_subpart_labels,
+    has_multi_question_markers as _has_multi_question_markers,
+    normalize_entry as _normalize_entry,
     parse_qa_text as _parse_qa_entries,
 )
-from report_formatter import format_grade_report
+from report_formatter import format_grade_report, format_summary
 
 
 # ---------------------------------------------------------------------------
@@ -36,8 +36,7 @@ from report_formatter import format_grade_report
 _SCRIPT_DIR = Path(__file__).resolve().parent
 load_dotenv(_SCRIPT_DIR.parent / ".env")
 
-_DEFAULT_MODEL = "gpt-5.4"
-_SUPPORTED_MODELS = ["gpt-5.4"]
+_SUPPORTED_MODELS = [DEFAULT_MODEL]
 _ESSAY_TYPES = ["DBQ", "LEQ", "SAQ"]
 _IMAGE_TYPES = ["jpg", "jpeg", "png", "webp"]
 _PDF_TYPE = ["pdf"]
@@ -101,161 +100,6 @@ A: The end of Zheng He's voyages marked the end of China's dominance...
 """
 
 _FORMAT_EXAMPLES = {"DBQ": _FORMAT_DBQ, "LEQ": _FORMAT_LEQ, "SAQ": _FORMAT_SAQ}
-
-
-# ---------------------------------------------------------------------------
-# Q&A text parser
-# ---------------------------------------------------------------------------
-
-# Matches standalone sub-part labels like "(a)", "(b)", "(c)"
-_SAQ_SUBPART_RE = re.compile(r"^\s*\(\s*([a-zA-Z])\s*\)\s*$")
-
-
-def _parse_leq_dbq(lines: list[str]) -> tuple[str, str, Optional[str]]:
-    """
-    Parses LEQ or DBQ Q&A text (list of lines) using a state machine.
-    Returns (question, answer, dbq_docs_from_text).
-    dbq_docs_from_text is None if no DOCS: section is present.
-    """
-    state = "before_q"
-    q_lines: list[str] = []
-    a_lines: list[str] = []
-    docs_lines: list[str] = []
-
-    for line in lines:
-        stripped = line.strip()
-        upper = stripped.upper()
-
-        if upper.startswith("CATEGORY:"):
-            continue
-
-        if upper.startswith("Q:"):
-            state = "in_q"
-            rest = stripped[2:].strip()
-            if rest:
-                q_lines.append(rest)
-            continue
-
-        if upper.startswith("DOCS:"):
-            state = "in_docs"
-            rest = stripped[5:].strip()
-            if rest:
-                docs_lines.append(rest)
-            continue
-
-        if upper.startswith("A:"):
-            state = "in_a"
-            rest = stripped[2:].strip()
-            if rest:
-                a_lines.append(rest)
-            continue
-
-        if state == "in_q":
-            q_lines.append(line.rstrip())
-        elif state == "in_docs":
-            docs_lines.append(line.rstrip())
-        elif state == "in_a":
-            a_lines.append(line.rstrip())
-
-    question = "\n".join(q_lines).strip()
-    answer = "\n".join(a_lines).strip()
-    docs = "\n".join(docs_lines).strip() or None
-    return question, answer, docs
-
-
-def _parse_saq(lines: list[str]) -> tuple[str, str, None]:
-    """
-    Parses SAQ Q&A text with (a)/(b)/(c) sub-parts.
-    Returns (combined_question, combined_answer, None).
-    Sub-parts are merged with Part A / Part B / Part C headers.
-    """
-    # Split into sub-part blocks
-    SubPart = dict  # {letter, q_lines, a_lines}
-    parts: list[SubPart] = []
-    current: Optional[SubPart] = None
-    sub_state = "before_part"
-
-    for line in lines:
-        stripped = line.strip()
-        upper = stripped.upper()
-
-        if upper.startswith("CATEGORY:"):
-            continue
-
-        m = _SAQ_SUBPART_RE.match(stripped)
-        if m:
-            current = {"letter": m.group(1).upper(), "q_lines": [], "a_lines": []}
-            parts.append(current)
-            sub_state = "before_q"
-            continue
-
-        if current is None:
-            continue
-
-        if upper.startswith("Q:"):
-            sub_state = "in_q"
-            rest = stripped[2:].strip()
-            if rest:
-                current["q_lines"].append(rest)
-            continue
-
-        if upper.startswith("A:"):
-            sub_state = "in_a"
-            rest = stripped[2:].strip()
-            if rest:
-                current["a_lines"].append(rest)
-            continue
-
-        if sub_state == "in_q":
-            current["q_lines"].append(line.rstrip())
-        elif sub_state == "in_a":
-            current["a_lines"].append(line.rstrip())
-
-    if not parts:
-        # Fallback: no sub-part markers found — treat as plain Q/A
-        q, a, _ = _parse_leq_dbq(lines)
-        return q, a, None
-
-    q_chunks: list[str] = []
-    a_chunks: list[str] = []
-    for p in parts:
-        letter = p["letter"]
-        q_text = "\n".join(p["q_lines"]).strip()
-        a_text = "\n".join(p["a_lines"]).strip()
-        q_chunks.append(f"Part {letter}\nQ: {q_text}")
-        a_chunks.append(f"Part {letter}\nA: {a_text}")
-
-    return "\n\n".join(q_chunks), "\n\n".join(a_chunks), None
-
-
-def _parse_single_qa_text(
-    text: str,
-    category: str,
-) -> tuple[str, str, Optional[str]]:
-    """
-    Parses combined Q&A text for a single question (the existing single-question format).
-    Returns (question, answer, dbq_docs_from_text).
-    dbq_docs_from_text is None unless a DOCS: section is found in the text.
-    For SAQ, sub-parts (a)/(b)/(c) are merged into combined question/answer strings.
-    Raises ValueError if question or answer cannot be extracted.
-    """
-    lines = text.splitlines()
-    if category == "SAQ":
-        question, answer, docs = _parse_saq(lines)
-    else:
-        question, answer, docs = _parse_leq_dbq(lines)
-
-    if not question:
-        raise ValueError(
-            "Could not find a question (Q:) in the input. "
-            "Make sure your text includes a line starting with 'Q:'."
-        )
-    if not answer:
-        raise ValueError(
-            "Could not find an answer (A:) in the input. "
-            "Make sure your text includes a line starting with 'A:'."
-        )
-    return question, answer, docs
 
 
 # ---------------------------------------------------------------------------
@@ -432,28 +276,6 @@ def render_grade_result(result: GradeResult) -> None:
 # _grade_and_render dispatches to single- or multi-question mode automatically.
 # ---------------------------------------------------------------------------
 
-def _has_multi_question_markers(text: str) -> bool:
-    """Returns True if the text contains Question1 / Question2 / … markers."""
-    return bool(re.search(r"^Question\s*\d+\s*:?\s*$", text, re.IGNORECASE | re.MULTILINE))
-
-
-def _format_summary_txt(results: list[tuple[int, str, GradeResult]]) -> str:
-    """Formats a combined score summary section for the downloadable multi-question report."""
-    sep = "=" * 72
-    lines = ["", sep, "  GRADING SUMMARY", sep]
-    lines.append(f"  {'#':<4} {'Label':<12} {'Type':<6} {'Score':>10}")
-    lines.append(f"  {'-'*4} {'-'*12} {'-'*6} {'-'*10}")
-    total_e = total_p = 0
-    for i, lbl, r in results:
-        lines.append(f"  {i:<4} {lbl:<12} {r.category:<6} {r.total_earned}/{r.total_possible}")
-        total_e += r.total_earned
-        total_p += r.total_possible
-    lines.append(f"  {'-'*36}")
-    lines.append(f"  {'TOTAL':<22} {total_e}/{total_p}")
-    lines.append(sep)
-    return "\n".join(lines)
-
-
 def _grade_single_entry(
     client: OpenAI,
     cat: str,
@@ -551,7 +373,7 @@ def _build_revised_output(
     Constructs the copyable revised-output text block in input format
     but with 'RA:' in place of 'A:'.
     """
-    lines: list[str] = []
+    lines: list[str] = ["Revised answer", ""]
     if question_label:
         lines.append(question_label)
     if cat == "SAQ":
@@ -576,6 +398,44 @@ def _build_revised_output(
     return "\n".join(lines).strip()
 
 
+def _render_changes_explanation(
+    client: OpenAI,
+    cat: str,
+    original: str,
+    revised: str,
+    model: str,
+) -> str:
+    """
+    Calls explain_changes() and renders the result in a collapsible expander.
+    Shows a spinner while the API call is in flight.
+    Returns the explanation text so callers can include it in copyable output,
+    or an empty string if the call failed.
+    """
+    with st.expander("What changed and why", expanded=True):
+        with st.spinner("Explaining changes…"):
+            try:
+                explanation = explain_changes(client, cat, original, revised, model)
+            except Exception as e:
+                st.error(f"Could not generate change explanation: {e}")
+                return ""
+        st.markdown(explanation)
+    return explanation
+
+
+def _spaced_paragraphs(text: str) -> str:
+    """
+    Ensures a blank line between every paragraph so Streamlit markdown
+    renders each paragraph as a separate block rather than collapsing them.
+    Consecutive newlines are normalised to exactly two, then doubled to four
+    so the markdown parser always sees a true paragraph break.
+    """
+    import re
+    # Collapse 3+ newlines to 2, then replace every double-newline with 4
+    # newlines so Streamlit's markdown renderer produces a visible gap.
+    normalised = re.sub(r"\n{3,}", "\n\n", text.strip())
+    return normalised.replace("\n\n", "\n\n\n\n")
+
+
 def _render_revised_question(cat: str, question: str, revised: str) -> None:
     """
     Renders one revised Q/RA pair in Streamlit.
@@ -589,13 +449,13 @@ def _render_revised_question(cat: str, question: str, revised: str) -> None:
         fallback_ra = ra_parsed[0][1] if ra_parsed else revised
         if q_parts:
             for letter, q_text in q_parts:
-                ra_text = ra_dict.get(letter, fallback_ra)
+                ra_text = _spaced_paragraphs(ra_dict.get(letter, fallback_ra))
                 st.success(f"**Part {letter.upper()} — Q:** {q_text}\n\n**RA:** {ra_text}")
         else:
             # Fallback: question not in merged Part A/B/C format — show as a single block.
-            st.success(f"**Q:** {question.strip()}\n\n**RA:** {revised.strip()}")
+            st.success(f"**Q:** {question.strip()}\n\n**RA:** {_spaced_paragraphs(revised)}")
     else:
-        st.success(f"**Q:** {question.strip()}\n\n**RA:** {revised.strip()}")
+        st.success(f"**Q:** {question.strip()}\n\n**RA:** {_spaced_paragraphs(revised)}")
 
 
 def _revise_and_render(
@@ -643,7 +503,11 @@ def _revise_and_render(
                     continue
 
             _render_revised_question(cat, q, revised)
-            output_blocks.append(_build_revised_output(cat, q, revised, label))
+            explanation = _render_changes_explanation(client, cat, a, revised, model)
+            block = _build_revised_output(cat, q, revised, label)
+            if explanation:
+                block += f"\n\nWhat changed and why\n{explanation}"
+            output_blocks.append(block)
 
         if output_blocks:
             full_output = f"CATEGORY: {essay_type}\n\n" + "\n\n".join(output_blocks)
@@ -655,10 +519,17 @@ def _revise_and_render(
     else:
         # ── Single-question path ──
         try:
-            question, answer, docs_from_text = _parse_single_qa_text(raw_qa, essay_type)
-        except ValueError as e:
+            entries = _parse_qa_entries(raw_qa, default_category=essay_type)
+        except _QAFormatError as e:
             st.error(str(e))
             return
+        if not entries:
+            st.error("No question found in the input. Check the format guide.")
+            return
+        entry = entries[0]
+        question = entry["question"]
+        answer = entry["answer"]
+        docs_from_text = entry.get("docs") or None
 
         effective_docs = dbq_docs_text or docs_from_text or None
 
@@ -670,9 +541,11 @@ def _revise_and_render(
                 return
 
         _render_revised_question(essay_type, question, revised)
-        full_output = f"CATEGORY: {essay_type}\n\n" + _build_revised_output(
-            essay_type, question, revised
-        )
+        explanation = _render_changes_explanation(client, essay_type, answer, revised, model)
+        revised_block = _build_revised_output(essay_type, question, revised)
+        if explanation:
+            revised_block += f"\n\nWhat changed and why\n{explanation}"
+        full_output = f"CATEGORY: {essay_type}\n\n" + revised_block
         st.divider()
         st.subheader("Full Revised Output")
         with st.expander("Copy Revised Text", expanded=True):
@@ -688,10 +561,17 @@ def _grade_and_render_single(
 ) -> None:
     """Parses raw_qa as a single question, grades it, and renders the full results UI."""
     try:
-        question, answer, docs_from_text = _parse_single_qa_text(raw_qa, essay_type)
-    except ValueError as e:
+        entries = _parse_qa_entries(raw_qa, default_category=essay_type)
+    except _QAFormatError as e:
         st.error(str(e))
         return
+    if not entries:
+        st.error("No question found in the input. Check the format guide.")
+        return
+    entry = entries[0]
+    question = entry["question"]
+    answer = entry["answer"]
+    docs_from_text = entry.get("docs") or None
 
     effective_docs: Optional[str] = dbq_docs_text or docs_from_text or None
     result = _grade_single_entry(client, essay_type, question, answer, effective_docs, model)
@@ -728,8 +608,7 @@ def _grade_and_render_multi(
     if len(entries) == 1:
         entry = entries[0]
         cat = entry["category"]
-        q = _normalize_saq_subpart_labels(entry["question"]) if cat == "SAQ" else entry["question"]
-        a = _normalize_saq_subpart_labels(entry["answer"]) if cat == "SAQ" else entry["answer"]
+        q, a = _normalize_entry(entry)
         docs = entry.get("docs") or dbq_docs_text or None
         result = _grade_single_entry(client, cat, q, a, docs, model)
         if result:
@@ -742,8 +621,7 @@ def _grade_and_render_multi(
 
     for i, entry in enumerate(entries, 1):
         cat = entry["category"]
-        q = _normalize_saq_subpart_labels(entry["question"]) if cat == "SAQ" else entry["question"]
-        a = _normalize_saq_subpart_labels(entry["answer"]) if cat == "SAQ" else entry["answer"]
+        q, a = _normalize_entry(entry)
         docs = entry.get("docs") or dbq_docs_text or None
         label = entry.get("question_label") or f"Question{i}"
 
@@ -777,7 +655,7 @@ def _grade_and_render_multi(
     ]
     st.table(summary_data)
 
-    all_reports.append(_format_summary_txt(graded))
+    all_reports.append(format_summary(graded))
     combined_report = "\n\n".join(all_reports)
     _render_download_buttons(combined_report, "grading_report_multi.txt")
 

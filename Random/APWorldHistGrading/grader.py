@@ -13,6 +13,9 @@ from typing import Optional
 from openai import OpenAI
 from rubrics import RubricCriterion, get_rubric, format_rubric_for_prompt
 
+# Default model used by both main.py (CLI) and streamlit_app.py (web UI).
+DEFAULT_MODEL = "gpt-5.4"
+
 
 @dataclass
 class CriterionResult:
@@ -134,9 +137,10 @@ _DBQ_DOCS_SECTION_TEMPLATE = """SOURCE DOCUMENTS PROVIDED TO THE STUDENT:
 
 _REVISION_SYSTEM_PROMPT = (
     "You are an expert AP World History: Modern tutor. "
-    "Rewrite the student's answer so it earns every available point on the official AP rubric. "
-    "Preserve the student's ideas and historical examples where they already satisfy the rubric; "
-    "add or strengthen only what is needed to earn the remaining points. "
+    "Make MINIMAL edits to the student's answer so it earns every available point on the official AP rubric. "
+    "Keep the student's original wording, sentence structure, and ideas as much as possible. "
+    "Only insert, append, or replace the specific phrases or sentences needed to address missing rubric points. "
+    "Do NOT reorganize, rephrase, or expand content that already satisfies the rubric. "
     "Output ONLY the revised answer text — no preamble, labels, or explanation."
 )
 
@@ -153,7 +157,9 @@ OFFICIAL RUBRIC:
 {rubric_text}
 
 ---
-Rewrite the student's answer above so it earns EVERY rubric point.
+Make the MINIMUM changes necessary to the student's answer so it earns EVERY rubric point.
+Preserve original wording wherever it already meets the rubric — only add or correct what is strictly needed for missing points.
+Do NOT reorganize sentences or rephrase content that is already correct.
 {format_hint}
 
 Output ONLY the revised answer text — no commentary, no preamble.\
@@ -167,14 +173,21 @@ _REVISION_FORMAT_HINTS: dict[str, str] = {
         "(c)\n[revised answer for part c]"
     ),
     "LEQ": (
-        "Write a complete essay with: a clear thesis establishing a line of reasoning, "
-        "body paragraphs each providing specific evidence with reasoning connecting it to the argument, "
-        "and contextualization."
+        "Do NOT rewrite the essay from scratch. Patch only what is missing: "
+        "if the thesis is weak, revise that sentence only; "
+        "if specific evidence is absent, insert a sentence in the appropriate paragraph; "
+        "if contextualization is missing, prepend or append a short paragraph. "
+        "The revised essay must have a clear thesis, body paragraphs with specific evidence "
+        "and reasoning, and contextualization — but change as little of the original as possible."
     ),
     "DBQ": (
-        "Write a complete essay with: a clear thesis, body paragraphs analyzing documents "
-        "and providing sourcing (purpose/audience/POV/situation) for at least three, "
-        "contextualization, and outside evidence."
+        "Do NOT rewrite the essay from scratch. Patch only what is missing: "
+        "if the thesis is weak, revise that sentence only; "
+        "if document analysis or sourcing (purpose/audience/POV/situation) is absent for a document, "
+        "insert the missing sentence inline; "
+        "if contextualization or outside evidence is missing, add a short paragraph. "
+        "The revised essay must have a clear thesis, document analysis with sourcing for at least three docs, "
+        "contextualization, and outside evidence — but change as little of the original as possible."
     ),
 }
 
@@ -208,6 +221,63 @@ def revise_answer(
     )
     messages = [
         {"role": "system", "content": _REVISION_SYSTEM_PROMPT},
+        {"role": "user", "content": prompt},
+    ]
+    return _call_with_retry(client, messages, model)
+
+
+_EXPLAIN_CHANGES_SYSTEM_PROMPT = (
+    "You are an expert AP World History: Modern tutor explaining edits to a student. "
+    "Be concise, specific, and encouraging. Focus on the rubric criteria that were addressed."
+)
+
+_EXPLAIN_CHANGES_INSTRUCTIONS = """\
+ESSAY TYPE: {category}
+
+OFFICIAL RUBRIC:
+{rubric_text}
+
+STUDENT'S ORIGINAL ANSWER:
+{original}
+
+REVISED ANSWER:
+{revised}
+
+---
+Compare the two answers above. List ONLY the changes that were actually made.
+For each change:
+- Quote or paraphrase the specific part that changed (keep quotes short).
+- State which rubric criterion it addresses.
+- Explain in one sentence why the change earns that point.
+
+If the original already earned a point that was kept unchanged, do NOT mention it.
+Format as a numbered list. Be concise — one bullet per change.\
+"""
+
+
+# Produces a bullet-list explanation of what changed between original and revised answer.
+def explain_changes(
+    client: OpenAI,
+    category: str,
+    original: str,
+    revised: str,
+    model: str,
+) -> str:
+    """
+    Calls the OpenAI API to produce a numbered list of the specific changes
+    made between original and revised, and the rubric reason for each change.
+    Returns plain text suitable for display.
+    """
+    rubric, max_score = get_rubric(category)
+    rubric_text = format_rubric_for_prompt(rubric, max_score)
+    prompt = _EXPLAIN_CHANGES_INSTRUCTIONS.format(
+        category=category,
+        rubric_text=rubric_text,
+        original=original.strip(),
+        revised=revised.strip(),
+    )
+    messages = [
+        {"role": "system", "content": _EXPLAIN_CHANGES_SYSTEM_PROMPT},
         {"role": "user", "content": prompt},
     ]
     return _call_with_retry(client, messages, model)
