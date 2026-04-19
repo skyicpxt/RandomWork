@@ -24,6 +24,7 @@ if "openai" not in sys.modules:
     sys.modules["openai"] = _openai_mod
 
 from grader import CriterionResult, GradeResult, revise_answer
+from grader import _enforce_tier_dependency
 from qa_parser import _normalize_saq_subpart_labels
 from report_formatter import format_summary
 
@@ -36,7 +37,14 @@ if "streamlit" not in sys.modules:
 if "dotenv" not in sys.modules:
     sys.modules["dotenv"] = MagicMock()
 
-from streamlit_app import _build_revised_output, _extract_saq_parts, _parse_revised_saq, _spaced_paragraphs
+from streamlit_app import (
+    _build_revised_output,
+    _extract_saq_parts,
+    _extract_saq_stimulus_text,
+    _parse_revised_saq,
+    _spaced_paragraphs,
+    _split_by_document_markers,
+)
 
 
 def _write_qa_file(content: str) -> Path:
@@ -147,6 +155,53 @@ A: A2.
         self.assertIn("Part A", entries[0]["question"])
         self.assertIn("A: A1.", entries[0]["answer"])
 
+    def test_legacy_saq_subqa_with_stimulus_paragraph(self) -> None:
+        """SAQ with a stimulus paragraph before the first (a) is parsed and stimulus preserved."""
+        text = """CATEGORY: SAQ
+
+Use the following passage to answer parts (a), (b), and (c).
+"In 1492, Columbus sailed the ocean blue and the Columbian Exchange began."
+
+(a)
+Q: Briefly describe ONE cause.
+A: Cause answer.
+
+(b)
+Q: Briefly describe ONE effect.
+A: Effect answer.
+"""
+        entries = self._parse(text)
+        self.assertEqual(len(entries), 1)
+        e = entries[0]
+        self.assertEqual(e["category"], "SAQ")
+        self.assertIn("Stimulus:", e["question"])
+        self.assertIn("Columbus sailed the ocean blue", e["question"])
+        self.assertIn("Part A", e["question"])
+        self.assertIn("Briefly describe ONE cause.", e["question"])
+        self.assertIn("Part B", e["question"])
+        # Stimulus should not appear in the answer side
+        self.assertNotIn("Columbus sailed the ocean blue", e["answer"])
+        self.assertIn("Cause answer.", e["answer"])
+        self.assertIn("Effect answer.", e["answer"])
+
+    def test_legacy_saq_subqa_with_inline_question_text(self) -> None:
+        """SAQ accepts inline question text on the (a) line without a separate Q: line."""
+        text = """CATEGORY: SAQ
+
+(a) Briefly describe ONE cause of the Columbian Exchange.
+A: My cause answer.
+
+(b) Briefly describe ONE effect of the Columbian Exchange.
+A: My effect answer.
+"""
+        entries = self._parse(text)
+        self.assertEqual(len(entries), 1)
+        e = entries[0]
+        self.assertIn("Briefly describe ONE cause of the Columbian Exchange.", e["question"])
+        self.assertIn("Briefly describe ONE effect of the Columbian Exchange.", e["question"])
+        self.assertIn("My cause answer.", e["answer"])
+        self.assertIn("My effect answer.", e["answer"])
+
 
 class TestParseMultiQandA(unittest.TestCase):
     """Format with Question1 / Question2 / … above each Q:."""
@@ -213,6 +268,298 @@ A: Ans two.
         self.assertIn("Part A", e["answer"])
         self.assertIn("A: Ans one.", e["answer"])
         self.assertIn("A: Ans two.", e["answer"])
+
+    def test_multi_saq_subqa_with_stimulus_between_question_and_subparts(self) -> None:
+        """A stimulus paragraph between QuestionN and (a) is captured as shared context."""
+        text = """CATEGORY: SAQ
+
+Question1
+Use the following passage to answer parts (a), (b), and (c).
+"Zheng He led seven voyages between 1405 and 1433 that reached as far as East Africa."
+
+(a)
+Q: Describe one change resulting from the voyages.
+A: Change answer.
+
+(b)
+Q: Describe one continuity in Indian Ocean trade.
+A: Continuity answer.
+
+(c)
+Q: Describe one impact of ending the voyages on China.
+A: Impact answer.
+"""
+        entries = self._parse(text)
+        self.assertEqual(len(entries), 1)
+        e = entries[0]
+        self.assertEqual(e["question_label"], "Question1")
+        self.assertEqual(e["category"], "SAQ")
+        self.assertIn("Stimulus:", e["question"])
+        self.assertIn("Zheng He led seven voyages", e["question"])
+        self.assertIn("Part A", e["question"])
+        self.assertIn("Part B", e["question"])
+        self.assertIn("Part C", e["question"])
+        self.assertIn("Describe one change", e["question"])
+        self.assertNotIn("Zheng He led seven voyages", e["answer"])
+        self.assertIn("Change answer.", e["answer"])
+        self.assertIn("Continuity answer.", e["answer"])
+        self.assertIn("Impact answer.", e["answer"])
+
+    def test_multi_saq_subqa_inline_question_text(self) -> None:
+        """A QuestionN block whose sub-parts use inline 'prompt on (a) line' is parsed."""
+        text = """CATEGORY: SAQ
+
+Question1
+(a) Briefly describe ONE cause of the Columbian Exchange.
+A: My cause answer.
+
+(b) Briefly describe ONE effect on the Americas.
+A: My americas answer.
+
+(c) Briefly describe ONE effect on Europe or Africa.
+A: My eurafrica answer.
+"""
+        entries = self._parse(text)
+        self.assertEqual(len(entries), 1)
+        e = entries[0]
+        self.assertEqual(e["question_label"], "Question1")
+        self.assertIn("Briefly describe ONE cause of the Columbian Exchange.", e["question"])
+        self.assertIn("Briefly describe ONE effect on the Americas.", e["question"])
+        self.assertIn("Briefly describe ONE effect on Europe or Africa.", e["question"])
+        self.assertIn("My cause answer.", e["answer"])
+        self.assertIn("My americas answer.", e["answer"])
+        self.assertIn("My eurafrica answer.", e["answer"])
+
+    def test_multi_saq_question_stem_before_q_marker(self) -> None:
+        """
+        Tolerates: question stem written under 'QuestionN:' with an empty 'Q:' label
+        (i.e. the stem is the preamble before Q:, and Q: itself has no text).
+        Regression for: "missing question text after 'Q:'" on this layout.
+        """
+        text = """CATEGORY: SAQ
+
+Question1:
+Briefly explain ONE political cause of the French Revolution.
+
+Q:
+A: One key political cause was the absolutist monarchy of Louis XVI.
+
+Question2:
+Briefly explain ONE economic effect of the French Revolution.
+
+Q:
+A: A major economic effect was the abolition of feudal dues.
+"""
+        entries = self._parse(text)
+        self.assertEqual(len(entries), 2)
+        self.assertIn("political cause of the French Revolution", entries[0]["question"])
+        self.assertIn("absolutist monarchy", entries[0]["answer"])
+        self.assertIn("economic effect of the French Revolution", entries[1]["question"])
+        self.assertIn("abolition of feudal dues", entries[1]["answer"])
+
+    def test_multi_saq_question_stem_without_q_marker(self) -> None:
+        """Tolerates: 'Q:' line omitted entirely; the stem before A: is the question."""
+        text = """CATEGORY: SAQ
+
+Question1
+Briefly describe ONE cause of the Columbian Exchange.
+A: Columbus's 1492 voyage was a primary cause.
+
+Question2
+Briefly explain ONE effect of the Columbian Exchange.
+A: A devastating effect was the demographic collapse of indigenous populations.
+"""
+        entries = self._parse(text)
+        self.assertEqual(len(entries), 2)
+        self.assertIn("Briefly describe ONE cause", entries[0]["question"])
+        self.assertIn("Columbus's 1492 voyage", entries[0]["answer"])
+        self.assertIn("Briefly explain ONE effect", entries[1]["question"])
+        self.assertIn("demographic collapse", entries[1]["answer"])
+
+    def test_multi_saq_question_combines_preamble_and_q_text(self) -> None:
+        """When both preamble and explicit Q: text are present, both are kept (preamble first)."""
+        text = """CATEGORY: SAQ
+
+Question1
+Refer to the following short passage about the Industrial Revolution.
+
+Q: Briefly describe ONE cause of industrialization.
+A: One cause was the availability of coal in Britain.
+"""
+        entries = self._parse(text)
+        self.assertEqual(len(entries), 1)
+        q = entries[0]["question"]
+        self.assertIn("Refer to the following short passage", q)
+        self.assertIn("Briefly describe ONE cause of industrialization.", q)
+        # Preamble appears before the explicit Q: text in the merged question
+        self.assertLess(
+            q.index("Refer to the following short passage"),
+            q.index("Briefly describe ONE cause"),
+        )
+
+    def test_multi_saq_auto_promote_multiple_qa_pairs_no_markers(self) -> None:
+        """SAQ with stimulus + 3 bare Q:/A: pairs (no (a)/(b)/(c)) auto-splits to Part A/B/C."""
+        text = """CATEGORY: SAQ
+
+Question1
+"The millionaires are a product of natural selection..."
+— William Graham Sumner, 1883
+
+Using the source above, answer parts a, b, and c below.
+
+Q: Identify and explain ONE way the author applies evolutionary theory.
+A: Natural selection answer for part a.
+
+Q: Identify and explain ONE way principles influenced governmental policies 1865-1898.
+A: Laissez-faire answer for part b.
+
+Q: Identify and explain ONE way ideologies challenged the ideas 1750-1900.
+A: Communism answer for part c.
+"""
+        entries = self._parse(text)
+        self.assertEqual(len(entries), 1)
+        e = entries[0]
+        self.assertEqual(e["category"], "SAQ")
+        # Stimulus + instruction line is captured as the shared preamble.
+        self.assertIn("Stimulus:", e["question"])
+        self.assertIn("millionaires are a product of natural selection", e["question"])
+        self.assertIn("Using the source above", e["question"])
+        # Each Q:/A: pair becomes its own Part with auto-assigned letter.
+        self.assertIn("Part A", e["question"])
+        self.assertIn("Part B", e["question"])
+        self.assertIn("Part C", e["question"])
+        self.assertIn("Identify and explain ONE way the author", e["question"])
+        self.assertIn("Identify and explain ONE way principles", e["question"])
+        self.assertIn("Identify and explain ONE way ideologies", e["question"])
+        # Each answer is preserved under its own Part.
+        self.assertIn("Part A", e["answer"])
+        self.assertIn("Part B", e["answer"])
+        self.assertIn("Part C", e["answer"])
+        self.assertIn("Natural selection answer for part a.", e["answer"])
+        self.assertIn("Laissez-faire answer for part b.", e["answer"])
+        self.assertIn("Communism answer for part c.", e["answer"])
+
+    def test_multi_saq_bare_subpart_markers_no_parens(self) -> None:
+        """SAQ with bare 'a)' / 'b)' / 'c)' markers (no opening paren) splits correctly."""
+        text = """CATEGORY: SAQ
+
+Question1
+Read the passage and answer the parts below.
+
+a) Q: Briefly describe ONE cause.
+A: Cause answer.
+
+b) Q: Briefly describe ONE effect.
+A: Effect answer.
+
+c) Q: Briefly describe ONE continuity.
+A: Continuity answer.
+"""
+        entries = self._parse(text)
+        self.assertEqual(len(entries), 1)
+        e = entries[0]
+        self.assertIn("Stimulus:", e["question"])
+        self.assertIn("Read the passage", e["question"])
+        self.assertIn("Part A", e["question"])
+        self.assertIn("Part B", e["question"])
+        self.assertIn("Part C", e["question"])
+        self.assertIn("Briefly describe ONE cause.", e["question"])
+        self.assertIn("Briefly describe ONE effect.", e["question"])
+        self.assertIn("Briefly describe ONE continuity.", e["question"])
+        # Bare markers themselves don't leak into either field.
+        self.assertNotIn("a)", e["answer"])
+        self.assertNotIn("b)", e["answer"])
+        self.assertNotIn("c)", e["answer"])
+        self.assertIn("Cause answer.", e["answer"])
+        self.assertIn("Effect answer.", e["answer"])
+        self.assertIn("Continuity answer.", e["answer"])
+
+    def test_multi_saq_bare_subpart_markers_inline_text(self) -> None:
+        """SAQ with bare 'a) prompt' inline form (no parens, no Q:) splits correctly."""
+        text = """CATEGORY: SAQ
+
+Question1
+Stimulus paragraph here.
+
+a) Briefly describe ONE cause of industrialization.
+A: Coal answer.
+
+b) Briefly describe ONE effect of industrialization.
+A: Urbanization answer.
+"""
+        entries = self._parse(text)
+        self.assertEqual(len(entries), 1)
+        e = entries[0]
+        self.assertIn("Stimulus:", e["question"])
+        self.assertIn("Stimulus paragraph here.", e["question"])
+        self.assertIn("Part A", e["question"])
+        self.assertIn("Part B", e["question"])
+        self.assertIn("Briefly describe ONE cause of industrialization.", e["question"])
+        self.assertIn("Briefly describe ONE effect of industrialization.", e["question"])
+        self.assertIn("Coal answer.", e["answer"])
+        self.assertIn("Urbanization answer.", e["answer"])
+
+    def test_multi_saq_bare_marker_in_answer_does_not_split(self) -> None:
+        """A bare letter+) inside an answer that breaks the a/b/c progression is kept as content."""
+        text = """CATEGORY: SAQ
+
+Question1
+(a)
+Q: First prompt?
+A: First answer mentions option z) which should not split.
+
+(b)
+Q: Second prompt?
+A: Second answer.
+"""
+        entries = self._parse(text)
+        self.assertEqual(len(entries), 1)
+        e = entries[0]
+        # Out-of-sequence "z)" inside the answer must NOT terminate the section.
+        self.assertIn("option z) which should not split.", e["answer"])
+        self.assertIn("Part A", e["answer"])
+        self.assertIn("Part B", e["answer"])
+
+    def test_multi_saq_two_questions_one_with_stimulus(self) -> None:
+        """Mixed: Question1 has no stimulus, Question2 has a stimulus paragraph."""
+        text = """CATEGORY: SAQ
+
+Question1
+(a)
+Q: First plain prompt?
+A: First plain answer.
+
+(b)
+Q: Second plain prompt?
+A: Second plain answer.
+
+Question2
+Examine the following primary source excerpt before answering each part.
+"<historical excerpt about industrial revolution labor conditions>"
+
+(a)
+Q: Stimulus-based prompt one?
+A: Stim answer one.
+
+(b) Stimulus-based prompt two? (inline form)
+A: Stim answer two.
+"""
+        entries = self._parse(text)
+        self.assertEqual(len(entries), 2)
+
+        e1 = entries[0]
+        self.assertEqual(e1["question_label"], "Question1")
+        self.assertNotIn("Stimulus:", e1["question"])
+        self.assertIn("First plain prompt?", e1["question"])
+
+        e2 = entries[1]
+        self.assertEqual(e2["question_label"], "Question2")
+        self.assertIn("Stimulus:", e2["question"])
+        self.assertIn("industrial revolution labor conditions", e2["question"])
+        self.assertIn("Stimulus-based prompt one?", e2["question"])
+        self.assertIn("Stimulus-based prompt two? (inline form)", e2["question"])
+        self.assertIn("Stim answer one.", e2["answer"])
+        self.assertIn("Stim answer two.", e2["answer"])
 
     def test_multi_dbq_shared_docs(self) -> None:
         """DOCS before Question1 applies to the DBQ pair."""
@@ -534,6 +881,81 @@ class TestReviseAnswer(unittest.TestCase):
             result = revise_answer(client, cat, "Q?", "A.", "gpt-test")
             self.assertEqual(result, "ok", f"Failed for category {cat}")
 
+    def test_no_diagnostic_section_when_grade_result_omitted(self) -> None:
+        """When grade_result is not provided the prompt has no DIAGNOSTIC block."""
+        client = self._make_client("ok")
+        revise_answer(client, "LEQ", "Q?", "A.", "gpt-test")
+        self.assertNotIn("DIAGNOSTIC FROM PRIOR GRADING", self._user_message(client))
+
+    def _make_grade_result(self) -> GradeResult:
+        """Builds a GradeResult with one earned and one unearned criterion for testing."""
+        earned = CriterionResult(
+            name="Thesis",
+            max_points=1,
+            points_earned=1,
+            evidence="EARNED_EVIDENCE_SENTINEL",
+            evidence_comment="Establishes a clear claim.",
+            not_earned_reason="",
+            suggestion="",
+        )
+        missed = CriterionResult(
+            name="Contextualization",
+            max_points=1,
+            points_earned=0,
+            evidence="N/A",
+            evidence_comment="N/A",
+            not_earned_reason="MISSING_REASON_SENTINEL",
+            suggestion="FIX_SUGGESTION_SENTINEL",
+        )
+        return GradeResult(
+            category="LEQ",
+            question="Q?",
+            answer="A.",
+            total_earned=1,
+            total_possible=2,
+            criteria_results=[earned, missed],
+            overall_suggestions="",
+        )
+
+    def test_diagnostic_section_lists_earned_and_unearned(self) -> None:
+        """When grade_result is provided the prompt embeds earned evidence + missing reasons."""
+        client = self._make_client("ok")
+        gr = self._make_grade_result()
+        revise_answer(client, "LEQ", "Q?", "A.", "gpt-test", grade_result=gr)
+        prompt = self._user_message(client)
+        self.assertIn("DIAGNOSTIC FROM PRIOR GRADING", prompt)
+        self.assertIn("CRITERIA ALREADY EARNED", prompt)
+        self.assertIn("EARNED_EVIDENCE_SENTINEL", prompt)
+        self.assertIn("CRITERIA NOT YET EARNED", prompt)
+        self.assertIn("MISSING_REASON_SENTINEL", prompt)
+        self.assertIn("FIX_SUGGESTION_SENTINEL", prompt)
+
+    def test_diagnostic_section_says_unchanged_when_all_earned(self) -> None:
+        """When every criterion is earned the diagnostic instructs to return the answer unchanged."""
+        client = self._make_client("ok")
+        full = CriterionResult(
+            name="Thesis",
+            max_points=1,
+            points_earned=1,
+            evidence="quote",
+            evidence_comment="ok",
+            not_earned_reason="",
+            suggestion="",
+        )
+        gr = GradeResult(
+            category="LEQ",
+            question="Q?",
+            answer="A.",
+            total_earned=1,
+            total_possible=1,
+            criteria_results=[full],
+            overall_suggestions="",
+        )
+        revise_answer(client, "LEQ", "Q?", "A.", "gpt-test", grade_result=gr)
+        prompt = self._user_message(client)
+        self.assertIn("ALL CRITERIA ARE ALREADY EARNED", prompt)
+        self.assertIn("UNCHANGED", prompt)
+
 
 class TestExtractSaqParts(unittest.TestCase):
     """_extract_saq_parts splits a merged SAQ question/answer string into per-part tuples."""
@@ -718,6 +1140,73 @@ class TestBuildRevisedOutput(unittest.TestCase):
         self.assertFalse(full.startswith("A:"))
 
 
+class TestExtractSaqStimulusText(unittest.TestCase):
+    """_extract_saq_stimulus_text pulls the shared stimulus out of a merged SAQ question."""
+
+    def test_returns_empty_for_question_without_stimulus(self) -> None:
+        """A merged question that is just Part A/B/C with no Stimulus: prefix returns ''."""
+        merged = "Part A\nQ: Stem A?\n\nPart B\nQ: Stem B?"
+        self.assertEqual(_extract_saq_stimulus_text(merged), "")
+
+    def test_returns_empty_for_plain_non_merged_question(self) -> None:
+        """A plain (non-merged) single question with no Stimulus: header returns ''."""
+        merged = "What caused the decline of the Mongol Empire?"
+        self.assertEqual(_extract_saq_stimulus_text(merged), "")
+
+    def test_extracts_single_paragraph_stimulus(self) -> None:
+        """Single-paragraph stimulus is extracted with the 'Stimulus:' label stripped."""
+        merged = (
+            "Stimulus:\nThe millionaires are a product of natural selection.\n\n"
+            "Part A\nQ: Stem A?"
+        )
+        self.assertEqual(
+            _extract_saq_stimulus_text(merged),
+            "The millionaires are a product of natural selection.",
+        )
+
+    def test_extracts_multi_paragraph_stimulus(self) -> None:
+        """Multi-paragraph stimulus (paragraphs separated by blank lines) is preserved."""
+        merged = (
+            "Stimulus:\nFirst paragraph of source.\n\n"
+            "Second paragraph of source.\n\n"
+            "Part A\nQ: Stem A?"
+        )
+        out = _extract_saq_stimulus_text(merged)
+        self.assertIn("First paragraph of source.", out)
+        self.assertIn("Second paragraph of source.", out)
+
+
+class TestBuildRevisedOutputStimulus(unittest.TestCase):
+    """_build_revised_output renders the SAQ stimulus once at the top, not per sub-part."""
+
+    def test_stimulus_emitted_once_before_parts(self) -> None:
+        """Stimulus block appears exactly once, above the first (a) sub-part."""
+        question = (
+            "Stimulus:\nSumner argues that millionaires are naturally selected.\n\n"
+            "Part A\nQ: Identify ONE way the author applies evolution.\n\n"
+            "Part B\nQ: Identify ONE policy influenced by these ideas."
+        )
+        revised = "(a)\nAnswer for a.\n\n(b)\nAnswer for b."
+        out = _build_revised_output("SAQ", question, revised)
+        # Stimulus block present, with no leading "Q:" prefix
+        self.assertIn("Stimulus:", out)
+        self.assertIn("Sumner argues that millionaires", out)
+        # The stimulus text must NOT be repeated as a Q: line
+        self.assertEqual(out.count("Sumner argues that millionaires"), 1)
+        # Per-part Q: and RA: lines for both sub-parts
+        self.assertIn("Q: Identify ONE way the author applies evolution.", out)
+        self.assertIn("RA: Answer for a.", out)
+        self.assertIn("Q: Identify ONE policy influenced by these ideas.", out)
+        self.assertIn("RA: Answer for b.", out)
+
+    def test_no_stimulus_no_stimulus_header(self) -> None:
+        """When the question has no Stimulus: prefix, the output must not invent one."""
+        question = "Part A\nQ: Stem A?\n\nPart B\nQ: Stem B?"
+        revised = "(a)\nA.\n\n(b)\nB."
+        out = _build_revised_output("SAQ", question, revised)
+        self.assertNotIn("Stimulus:", out)
+
+
 class TestSpacedParagraphs(unittest.TestCase):
     """_spaced_paragraphs ensures visible blank lines between paragraphs in Streamlit markdown."""
 
@@ -776,6 +1265,201 @@ class TestBuildRevisedOutputHeader(unittest.TestCase):
         self.assertEqual(lines[0], "Revised answer")
         self.assertIn("Question 3", out)
         self.assertGreater(out.index("Question 3"), out.index("Revised answer"))
+
+
+class TestSplitByDocumentMarkers(unittest.TestCase):
+    """_split_by_document_markers detects embedded doc headers and splits the text.
+    Returns list[tuple[int, str]] — (doc_number, section_text)."""
+
+    def _sections(self, text: str) -> list[str]:
+        """Helper: return just the section strings from the result tuples."""
+        return [s for _, s in _split_by_document_markers(text)]
+
+    def _numbers(self, text: str) -> list[int]:
+        """Helper: return just the document numbers from the result tuples."""
+        return [n for n, _ in _split_by_document_markers(text)]
+
+    def test_standard_document_headers(self) -> None:
+        """'Document 1' / 'Document 2' splits into two (number, text) tuples."""
+        text = "Document 1\nFirst source text.\n\nDocument 2\nSecond source text."
+        parts = _split_by_document_markers(text)
+        self.assertEqual(len(parts), 2)
+        self.assertEqual(parts[0][0], 1)
+        self.assertEqual(parts[1][0], 2)
+        self.assertIn("First source text.", parts[0][1])
+        self.assertIn("Second source text.", parts[1][1])
+
+    def test_case_insensitive_document(self) -> None:
+        """'DOCUMENT 1' and 'document 2' are both recognised."""
+        text = "DOCUMENT 1\nText A.\n\ndocument 2\nText B."
+        self.assertEqual(len(_split_by_document_markers(text)), 2)
+
+    def test_abbreviated_doc_header(self) -> None:
+        """'Doc 1' and 'DOC 2' are recognised as markers with correct numbers."""
+        text = "Doc 1\nAlpha.\n\nDOC 2\nBeta."
+        parts = _split_by_document_markers(text)
+        self.assertEqual(len(parts), 2)
+        self.assertEqual(self._numbers(text), [1, 2])
+        self.assertIn("Alpha.", self._sections(text)[0])
+        self.assertIn("Beta.", self._sections(text)[1])
+
+    def test_doc_with_period(self) -> None:
+        """'Doc. 1' (with a period) is recognised and number extracted."""
+        text = "Doc. 1\nGamma.\n\nDoc. 2\nDelta."
+        self.assertEqual(self._numbers(text), [1, 2])
+
+    def test_seven_documents(self) -> None:
+        """A typical DBQ packet with seven documents splits correctly."""
+        lines = [f"Document {n}\nContent of document {n}." for n in range(1, 8)]
+        text = "\n\n".join(lines)
+        parts = _split_by_document_markers(text)
+        self.assertEqual(len(parts), 7)
+        self.assertEqual([n for n, _ in parts], list(range(1, 8)))
+        for n, section in parts:
+            self.assertIn(f"Content of document {n}.", section)
+
+    def test_header_with_trailing_punctuation(self) -> None:
+        """'Document 1:' and 'Document 2 —' are still recognised."""
+        text = "Document 1: Some title\nText one.\n\nDocument 2 — Another title\nText two."
+        self.assertEqual(len(_split_by_document_markers(text)), 2)
+
+    def test_no_markers_returns_empty_list(self) -> None:
+        """Text without any document headers returns [] so caller falls back."""
+        text = "This is just a single block of source text with no headers."
+        self.assertEqual(_split_by_document_markers(text), [])
+
+    def test_empty_string_returns_empty_list(self) -> None:
+        self.assertEqual(_split_by_document_markers(""), [])
+
+    def test_header_preserved_in_section(self) -> None:
+        """Each returned section text begins with its original header line."""
+        text = "Document 1\nBody one.\n\nDocument 2\nBody two."
+        sections = self._sections(text)
+        self.assertTrue(sections[0].startswith("Document 1"))
+        self.assertTrue(sections[1].startswith("Document 2"))
+
+    def test_mixed_capitalisation(self) -> None:
+        """Mix of 'Document', 'Doc', and 'DOC' in the same file all split."""
+        text = "Document 1\nA.\n\nDoc 2\nB.\n\nDOC 3\nC."
+        self.assertEqual(len(_split_by_document_markers(text)), 3)
+
+    def test_missing_document_numbers_detected(self) -> None:
+        """When doc 2 is absent, numbers [1, 3] are returned so caller can warn."""
+        text = "Document 1\nFirst.\n\nDocument 3\nThird."
+        numbers = self._numbers(text)
+        self.assertEqual(numbers, [1, 3])
+        missing = sorted(set(range(1, max(numbers) + 1)) - set(numbers))
+        self.assertEqual(missing, [2])
+
+    def test_non_sequential_gap_of_two(self) -> None:
+        """Documents 1 and 4 present — numbers 2 and 3 are missing."""
+        text = "Document 1\nA.\n\nDocument 4\nD."
+        numbers = self._numbers(text)
+        missing = sorted(set(range(1, max(numbers) + 1)) - set(numbers))
+        self.assertEqual(missing, [2, 3])
+
+    # Regression test for centered/indented PDF headers: pypdf preserves the
+    # leading whitespace used to center text on the page, so headers like
+    # "    Document 4" must still be detected.
+    def test_indented_headers_from_centered_pdf_text(self) -> None:
+        """Headers with leading spaces or tabs (from centered PDF text) are still split."""
+        text = (
+            "    Document 1\nFirst.\n\n"
+            "  Document 2\nSecond.\n\n"
+            "\tDocument 3\nThird.\n\n"
+            "Document 4\nFourth.\n\n"
+            "      Document 5\nFifth."
+        )
+        numbers = self._numbers(text)
+        self.assertEqual(numbers, [1, 2, 3, 4, 5])
+        sections = self._sections(text)
+        # Each captured header begins at "Document N" (leading whitespace stripped)
+        self.assertTrue(sections[0].startswith("Document 1"))
+        self.assertTrue(sections[1].startswith("Document 2"))
+        self.assertTrue(sections[4].startswith("Document 5"))
+
+
+# Helper: builds a CriterionResult quickly for the tier-dependency tests below.
+def _cr(name: str, earned: int, max_pts: int = 1, evidence: str = "x") -> CriterionResult:
+    """Construct a minimal CriterionResult for tier-dependency unit tests."""
+    return CriterionResult(
+        name=name,
+        max_points=max_pts,
+        points_earned=earned,
+        evidence=evidence,
+        evidence_comment="",
+        not_earned_reason="",
+        suggestion="",
+    )
+
+
+class TestEnforceTierDependency(unittest.TestCase):
+    """_enforce_tier_dependency zeros out Tier 2 if its paired Tier 1 wasn't earned."""
+
+    def test_zeros_tier2_when_tier1_missing(self) -> None:
+        """DBQ Tier 2 awarded but Tier 1 missing — Tier 2 must be zeroed."""
+        crs = [
+            _cr("Evidence from Documents: Content (Tier 1)", earned=0),
+            _cr("Evidence from Documents: Supports Argument (Tier 2)", earned=1),
+        ]
+        total = _enforce_tier_dependency(crs)
+        self.assertEqual(crs[1].points_earned, 0)
+        self.assertEqual(total, 0)
+        self.assertIn("Tier 1", crs[1].not_earned_reason)
+
+    def test_keeps_tier2_when_tier1_earned(self) -> None:
+        """When Tier 1 is also earned, Tier 2 is preserved untouched."""
+        crs = [
+            _cr("Evidence from Documents: Content (Tier 1)", earned=1),
+            _cr("Evidence from Documents: Supports Argument (Tier 2)", earned=1),
+        ]
+        total = _enforce_tier_dependency(crs)
+        self.assertEqual(crs[1].points_earned, 1)
+        self.assertEqual(total, 2)
+        self.assertEqual(crs[1].not_earned_reason, "")
+
+    def test_handles_leq_tier_pair(self) -> None:
+        """LEQ uses 'Evidence: Specific Examples (Tier 1)' / '... Supports Argument (Tier 2)'."""
+        crs = [
+            _cr("Evidence: Specific Examples (Tier 1)", earned=0),
+            _cr("Evidence: Supports Argument (Tier 2)", earned=1),
+        ]
+        total = _enforce_tier_dependency(crs)
+        self.assertEqual(crs[1].points_earned, 0)
+        self.assertEqual(total, 0)
+
+    def test_preserves_original_rationale_when_present(self) -> None:
+        """If Tier 2 already has a not_earned_reason, the dependency note is prepended."""
+        crs = [
+            _cr("Evidence from Documents: Content (Tier 1)", earned=0),
+            _cr("Evidence from Documents: Supports Argument (Tier 2)", earned=1),
+        ]
+        crs[1].not_earned_reason = "Original rationale text."
+        _enforce_tier_dependency(crs)
+        self.assertIn("Tier 1", crs[1].not_earned_reason)
+        self.assertIn("Original rationale text.", crs[1].not_earned_reason)
+
+    def test_no_tier2_criteria_is_noop(self) -> None:
+        """SAQ-style criteria (no Tier labels at all) are unaffected."""
+        crs = [
+            _cr("Part A", earned=1),
+            _cr("Part B", earned=0),
+            _cr("Part C", earned=1),
+        ]
+        total = _enforce_tier_dependency(crs)
+        self.assertEqual(total, 2)
+        self.assertEqual([c.points_earned for c in crs], [1, 0, 1])
+
+    def test_tier2_with_zero_points_is_unchanged(self) -> None:
+        """If the model already zeroed Tier 2, no warning or change is needed."""
+        crs = [
+            _cr("Evidence from Documents: Content (Tier 1)", earned=0),
+            _cr("Evidence from Documents: Supports Argument (Tier 2)", earned=0),
+        ]
+        crs[1].not_earned_reason = "Only used 2 docs to support an argument."
+        total = _enforce_tier_dependency(crs)
+        self.assertEqual(total, 0)
+        self.assertEqual(crs[1].not_earned_reason, "Only used 2 docs to support an argument.")
 
 
 if __name__ == "__main__":
